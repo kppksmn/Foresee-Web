@@ -1,0 +1,17 @@
+@import "tailwindcss";
+
+html {
+  font-size: 18px;
+}
+
+@layer base {
+  * {
+    font-family: 'Prompt', -apple-system, BlinkMacSystemFont, sans-serif !important;
+  }
+}
+
+body {
+  margin: 0;
+  font-family: 'Prompt', -apple-system, BlinkMacSystemFont, sans-serif;
+  background-color: #f8fafc;
+}
