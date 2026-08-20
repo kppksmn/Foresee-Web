@@ -177,6 +177,8 @@ export const CreateJobPage: React.FC = () => {
   };
   const [driverId, setDriverId] = useState('');
   const [vehicleId, setVehicleId] = useState('');
+  const [lastSelectedDriverId, setLastSelectedDriverId] = useState('');
+  const [lastSelectedVehicleId, setLastSelectedVehicleId] = useState('');
   const [jobStatus, setJobStatus] = useState('Pending');
   const [cancellationReason, setCancellationReason] = useState('');
 
@@ -255,8 +257,12 @@ export const CreateJobPage: React.FC = () => {
       setJobNumber(existingJob.jobNumber || '');
       setTitle(existingJob.title || '');
       setDescription(existingJob.description || '');
-      setDriverId(existingJob.driverId ? String(existingJob.driverId) : '');
-      setVehicleId(existingJob.vehicleId ? String(existingJob.vehicleId) : '');
+      const dId = existingJob.driverId ? String(existingJob.driverId) : '';
+      const vId = existingJob.vehicleId ? String(existingJob.vehicleId) : '';
+      setDriverId(dId);
+      setVehicleId(vId);
+      setLastSelectedDriverId(dId);
+      setLastSelectedVehicleId(vId);
       setPickupSearch(existingJob.pickupLocation || '');
       setPickupLat(existingJob.pickupLat ? String(existingJob.pickupLat) : '');
       setPickupLng(existingJob.pickupLng ? String(existingJob.pickupLng) : '');
@@ -307,6 +313,7 @@ export const CreateJobPage: React.FC = () => {
 
   const handleDriverChange = (selectedId: string) => {
     setDriverId(selectedId);
+    if (selectedId) setLastSelectedDriverId(selectedId);
     
     if (!selectedId) {
       // If driver is removed, automatically set status to Pending
@@ -323,13 +330,14 @@ export const CreateJobPage: React.FC = () => {
     
     // Auto-assign driver's default vehicle if available
     const driver = drivers.find((d: any) => d.id === Number(selectedId));
+    let newVehId = '';
     if (driver && driver.defaultVehicleId) {
-      setVehicleId(String(driver.defaultVehicleId));
+      newVehId = String(driver.defaultVehicleId);
     } else if (driver && driver.vehicleId) {
-      setVehicleId(String(driver.vehicleId));
-    } else {
-      setVehicleId('');
+      newVehId = String(driver.vehicleId);
     }
+    setVehicleId(newVehId);
+    if (newVehId) setLastSelectedVehicleId(newVehId);
   };
 
   const selectedDriver = drivers.find((d: any) => d.id === Number(driverId));
@@ -498,7 +506,19 @@ export const CreateJobPage: React.FC = () => {
                   <Select
                     value={jobStatus}
                     onChange={(e) => {
-                      setJobStatus(e.target.value);
+                      const newStatus = e.target.value;
+                      const oldStatus = jobStatus;
+                      setJobStatus(newStatus);
+                      
+                      if (newStatus === 'Pending') {
+                        // Clear inputs when changing to Pending
+                        setDriverId('');
+                        setVehicleId('');
+                      } else if (oldStatus === 'Pending') {
+                        // Restore previous selections when switching away from Pending
+                        setDriverId(lastSelectedDriverId);
+                        setVehicleId(lastSelectedVehicleId);
+                      }
                       setError('');
                     }}
                     sx={{
@@ -876,7 +896,10 @@ export const CreateJobPage: React.FC = () => {
               </label>
               <CustomScrollSelect
                 value={vehicleId}
-                onChange={(val) => setVehicleId(val)}
+                onChange={(val) => {
+                  setVehicleId(val);
+                  if (val) setLastSelectedVehicleId(val);
+                }}
                 disabled={isReadOnly}
                 placeholder="-- ไม่ระบุ --"
                 options={vehicles.map((v: any) => ({
