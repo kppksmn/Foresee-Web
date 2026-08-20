@@ -14,6 +14,7 @@ import { useQuery } from '@tanstack/react-query';
 import apiClient from '../../api/client';
 import { AlertModal } from '../../components/common/CustomModal';
 import { formatDateThai } from '../../utils/dateUtils';
+import { CustomScrollSelect } from '../../components/common/CustomScrollSelect';
 
 interface JobsPageProps {
   mode?: 'active' | 'history';
@@ -89,26 +90,26 @@ export const JobsPage: React.FC<JobsPageProps> = ({ mode = 'active' }) => {
               className="w-full pl-9 pr-4 py-2 text-sm bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 text-slate-800"
             />
           </div>
-          <select
-            value={status}
-            onChange={(e) => setStatus(e.target.value)}
-            className="px-3 py-2 text-sm bg-slate-50 border border-slate-200 rounded-lg text-slate-700 font-medium focus:outline-none cursor-pointer"
-          >
-            <option value="">ทุกสถานะงาน</option>
-            {isHistoryMode ? (
-              <>
-                <option value="Completed">ปิดงานแล้ว</option>
-                <option value="Cancelled">ยกเลิก</option>
-              </>
-            ) : (
-              <>
-                <option value="Pending">รอมอบหมาย</option>
-                <option value="Assigned">มอบหมายแล้ว</option>
-                <option value="Started">เริ่มงานแล้ว</option>
-                <option value="Arrived">ถึงสถานที่แล้ว</option>
-              </>
-            )}
-          </select>
+          <div className="w-48">
+            <CustomScrollSelect
+              value={status}
+              onChange={(val) => setStatus(val)}
+              placeholder="ทุกสถานะงาน"
+              options={
+                isHistoryMode
+                  ? [
+                      { label: 'ปิดงานแล้ว', value: 'Completed' },
+                      { label: 'ยกเลิก', value: 'Cancelled' },
+                    ]
+                  : [
+                      { label: 'รอมอบหมาย', value: 'Pending' },
+                      { label: 'มอบหมายแล้ว', value: 'Assigned' },
+                      { label: 'เริ่มงานแล้ว', value: 'Started' },
+                      { label: 'ถึงสถานที่แล้ว', value: 'Arrived' },
+                    ]
+              }
+            />
+          </div>
         </div>
         <button
           onClick={() => refetch()}
@@ -182,7 +183,14 @@ export const JobsPage: React.FC<JobsPageProps> = ({ mode = 'active' }) => {
                     {isHistoryMode && (
                       <td className="px-5 py-4 text-xs">
                         {job.status === 'Cancelled' ? (
-                          <span className="text-rose-600 font-medium">{job.cancellationReason || job.cancellationreason || '-'}</span>
+                          <div className="space-y-0.5 max-w-xs">
+                            <span className="text-rose-600 font-medium block">{job.cancellationReason || job.cancellationreason || '-'}</span>
+                            {(job.cancelledByName || job.cancelledbyname) && (
+                              <span className="text-[11px] text-slate-500 block">
+                                ยกเลิกโดย: <span className="font-semibold text-slate-700">{job.cancelledByName || job.cancelledbyname}</span>
+                              </span>
+                            )}
+                          </div>
                         ) : (
                           <span className="text-slate-400">-</span>
                         )}

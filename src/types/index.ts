@@ -17,7 +17,6 @@ export interface Job {
   vehiclePlate?: string;
   status: 'Pending' | 'Assigned' | 'Started' | 'Arrived' | 'Completed' | 'Cancelled';
   pickupLocation: string;
-  dropoffLocation: string;
   scheduledStartAt?: string;
   startedAt?: string;
   arrivedAt?: string;

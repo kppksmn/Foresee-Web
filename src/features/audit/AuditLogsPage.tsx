@@ -3,6 +3,7 @@ import { Search, History, RefreshCw, User, Tag, Clock, Calendar, Filter, X } fro
 import { useQuery } from '@tanstack/react-query';
 import apiClient from '../../api/client';
 import { formatDateThai } from '../../utils/dateUtils';
+import { CustomScrollSelect } from '../../components/common/CustomScrollSelect';
 
 export const AuditLogsPage: React.FC = () => {
   const [search, setSearch] = useState('');
@@ -163,18 +164,15 @@ export const AuditLogsPage: React.FC = () => {
               <User size={13} className="text-slate-400" />
               <span>ผู้ทำรายการ</span>
             </label>
-            <select
+            <CustomScrollSelect
               value={selectedUserId}
-              onChange={(e) => setSelectedUserId(e.target.value)}
-              className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-blue-500/20 text-slate-800 font-medium"
-            >
-              <option value="">ทั้งหมด (All Users)</option>
-              {users.map((u: any) => (
-                <option key={u.id} value={u.id}>
-                  {u.displayName || u.username} ({u.role})
-                </option>
-              ))}
-            </select>
+              onChange={(val) => setSelectedUserId(val)}
+              placeholder="ทั้งหมด (All Users)"
+              options={users.map((u: any) => ({
+                label: `${u.displayName || u.username || u.name || 'User #' + u.id} (${u.role})`,
+                value: String(u.id),
+              }))}
+            />
           </div>
 
           {/* Category / Entity Filter */}
@@ -183,17 +181,17 @@ export const AuditLogsPage: React.FC = () => {
               <Tag size={13} className="text-slate-400" />
               <span>หมวดหมู่ (Module)</span>
             </label>
-            <select
+            <CustomScrollSelect
               value={selectedEntity}
-              onChange={(e) => setSelectedEntity(e.target.value)}
-              className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-blue-500/20 text-slate-800 font-medium"
-            >
-              <option value="">ทั้งหมด (All Modules)</option>
-              <option value="jobs">งานขนส่ง (Jobs)</option>
-              <option value="users">ผู้ใช้งาน (Users)</option>
-              <option value="vehicles">ยานพาหนะ (Vehicles)</option>
-              <option value="vehicle_types">ประเภทรถ (Vehicle Types)</option>
-            </select>
+              onChange={(val) => setSelectedEntity(val)}
+              placeholder="ทั้งหมด (All Modules)"
+              options={[
+                { label: 'งานขนส่ง (Jobs)', value: 'jobs' },
+                { label: 'ผู้ใช้งาน (Users)', value: 'users' },
+                { label: 'ยานพาหนะ (Vehicles)', value: 'vehicles' },
+                { label: 'ประเภทรถ (Vehicle Types)', value: 'vehicle_types' },
+              ]}
+            />
           </div>
 
           {/* Start Date */}

@@ -157,8 +157,25 @@ export const UsersPage: React.FC = () => {
 
   const handleCreateUser = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!username || !name || !employeeId || !phone || !email || !birthDay || !birthMonth || !birthYearBE) {
+    if (!username || !name || !employeeId || !phone || !email || !idCardNo || !birthDay || !birthMonth || !birthYearBE) {
       showAlert('กรุณากรอกข้อมูลที่จำเป็นให้ครบถ้วนทุกฟิลด์ (*)');
+      return;
+    }
+
+    const cleanPhone = phone.trim().replace(/\D/g, '');
+    if (!/^\d{10}$/.test(cleanPhone)) {
+      showAlert('กรุณากรอกเบอร์โทรศัพท์ให้ครบ 10 หลัก (เฉพาะตัวเลขเท่านั้น)');
+      return;
+    }
+
+    const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+    if (!emailRegex.test(email.trim())) {
+      showAlert('รูปแบบอีเมลไม่ถูกต้อง (ตัวอย่าง: user@foresee.com)');
+      return;
+    }
+
+    if (!/^\d{13}$/.test(idCardNo.trim())) {
+      showAlert('กรุณากรอกเลขบัตรประชาชนให้ครบ 13 หลัก (เฉพาะตัวเลขเท่านั้น)');
       return;
     }
 
@@ -496,14 +513,15 @@ export const UsersPage: React.FC = () => {
                     <Shield size={13} className="text-slate-400" />
                     <span>สิทธิ์ผู้ใช้งาน *</span>
                   </label>
-                  <select
+                  <CustomScrollSelect
                     value={role}
-                    onChange={(e) => setRole(e.target.value)}
-                    className="w-full px-3.5 py-2 text-sm bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 text-slate-800 font-medium"
-                  >
-                    <option value="Driver">Driver (พนักงานขับรถ)</option>
-                    <option value="Admin">Admin (ผู้ดูแลระบบ)</option>
-                  </select>
+                    onChange={(val) => setRole(val)}
+                    placeholder="เลือกสิทธิ์ผู้ใช้งาน"
+                    options={[
+                      { label: 'Driver (พนักงานขับรถ)', value: 'Driver' },
+                      { label: 'Admin (ผู้ดูแลระบบ)', value: 'Admin' },
+                    ]}
+                  />
                 </div>
               </div>
 
@@ -511,13 +529,14 @@ export const UsersPage: React.FC = () => {
                 <div>
                   <label className="block text-xs font-semibold text-slate-700 mb-1 flex items-center gap-1">
                     <Phone size={13} className="text-slate-400" />
-                    <span>เบอร์โทรศัพท์ *</span>
+                    <span>เบอร์โทรศัพท์ (10 หลัก) *</span>
                   </label>
                   <input
                     type="tel"
-                    placeholder="08X-XXX-XXXX"
+                    maxLength={10}
+                    placeholder="เช่น 0812345678"
                     value={phone}
-                    onChange={(e) => setPhone(e.target.value)}
+                    onChange={(e) => setPhone(e.target.value.replace(/\D/g, '').slice(0, 10))}
                     required
                     className="w-full px-3.5 py-2 text-sm bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 text-slate-800"
                   />
@@ -529,9 +548,9 @@ export const UsersPage: React.FC = () => {
                   </label>
                   <input
                     type="email"
-                    placeholder="user@foresee.com"
+                    placeholder="เช่น user@foresee.com"
                     value={email}
-                    onChange={(e) => setEmail(e.target.value)}
+                    onChange={(e) => setEmail(e.target.value.trim())}
                     required
                     className="w-full px-3.5 py-2 text-sm bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 text-slate-800"
                   />
@@ -540,14 +559,15 @@ export const UsersPage: React.FC = () => {
 
               <div>
                 <label className="block text-xs font-semibold text-slate-700 mb-1">
-                  เลขบัตรประชาชน (13 หลัก)
+                  เลขบัตรประชาชน (13 หลัก) *
                 </label>
                 <input
                   type="text"
                   maxLength={13}
                   placeholder="เช่น 1234567890123"
                   value={idCardNo}
-                  onChange={(e) => setIdCardNo(e.target.value)}
+                  onChange={(e) => setIdCardNo(e.target.value.replace(/\D/g, ''))}
+                  required
                   disabled={!!editingUserId}
                   className={`w-full px-3.5 py-2 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 ${editingUserId ? 'bg-slate-100 text-slate-500 border-slate-200 cursor-not-allowed font-medium' : 'bg-slate-50 border-slate-200 text-slate-800'}`}
                 />

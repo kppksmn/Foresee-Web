@@ -15,10 +15,12 @@ import {
   Trash2
 } from 'lucide-react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import apiClient from '../../api/client';
 import { CustomScrollSelect } from '../../components/common/CustomScrollSelect';
 import { ConfirmModal } from '../../components/common/CustomModal';
+import { FormControl, Select, MenuItem } from '@mui/material';
+import { formatDateThai } from '../../utils/dateUtils';
 
 declare global {
   interface Window {
@@ -28,6 +30,7 @@ declare global {
 
 export const CreateJobPage: React.FC = () => {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const { id: jobId } = useParams<{ id: string }>();
   const [searchParams] = useSearchParams();
   const isReadOnly = searchParams.get('readOnly') === 'true';
@@ -47,12 +50,12 @@ export const CreateJobPage: React.FC = () => {
   // Options for 24-hour picker (00-23) and minutes (00-59)
   const hourOptions = Array.from({ length: 24 }, (_, i) => {
     const val = String(i).padStart(2, '0');
-    return { label: `${val} น.`, value: val };
+    return { label: val, value: val };
   });
 
   const minuteOptions = Array.from({ length: 60 }, (_, i) => {
     const val = String(i).padStart(2, '0');
-    return { label: `${val} นาที`, value: val };
+    return { label: val, value: val };
   });
   const [contactName, setContactName] = useState('');
   const [contactPhone, setContactPhone] = useState('');
@@ -180,6 +183,7 @@ export const CreateJobPage: React.FC = () => {
   const [error, setError] = useState('');
   const [warning, setWarning] = useState('');
   const [loading, setLoading] = useState(false);
+  const [hasAttemptedSubmit, setHasAttemptedSubmit] = useState(false);
 
   // Fetch Drivers from Database (Role: Driver)
   const { data: rawUsers = [] } = useQuery({
@@ -247,39 +251,82 @@ export const CreateJobPage: React.FC = () => {
 
   // Populate form state when editing existing job
   useEffect(() => {
-    if (existingJob) {
-      if (existingJob.jobNumber) setJobNumber(existingJob.jobNumber);
-      if (existingJob.title) setTitle(existingJob.title);
-      if (existingJob.description) setDescription(existingJob.description);
-      if (existingJob.driverId) setDriverId(String(existingJob.driverId));
-      if (existingJob.vehicleId) setVehicleId(String(existingJob.vehicleId));
-      if (existingJob.pickupLocation) setPickupSearch(existingJob.pickupLocation);
-      if (existingJob.pickupLat) setPickupLat(String(existingJob.pickupLat));
-      if (existingJob.pickupLng) setPickupLng(String(existingJob.pickupLng));
+    if (isEditMode && existingJob) {
+      setJobNumber(existingJob.jobNumber || '');
+      setTitle(existingJob.title || '');
+      setDescription(existingJob.description || '');
+      setDriverId(existingJob.driverId ? String(existingJob.driverId) : '');
+      setVehicleId(existingJob.vehicleId ? String(existingJob.vehicleId) : '');
+      setPickupSearch(existingJob.pickupLocation || '');
+      setPickupLat(existingJob.pickupLat ? String(existingJob.pickupLat) : '');
+      setPickupLng(existingJob.pickupLng ? String(existingJob.pickupLng) : '');
 
-      if (existingJob.contactName) setContactName(existingJob.contactName);
-      if (existingJob.contactPhone) setContactPhone(existingJob.contactPhone);
-      if (existingJob.companions) setFollowers(existingJob.companions);
-      if (existingJob.status) setJobStatus(existingJob.status);
-      if (existingJob.cancellationReason) setCancellationReason(existingJob.cancellationReason);
+      setContactName(existingJob.contactName || '');
+      setContactPhone(existingJob.contactPhone || '');
+      setFollowers(existingJob.companions || '');
+      setJobStatus(existingJob.status || 'Pending');
+      setCancellationReason(existingJob.cancellationReason || '');
 
-      if (existingJob.scheduledDate) setScheduledDate(existingJob.scheduledDate);
+      setScheduledDate(existingJob.scheduledDate || '');
       if (existingJob.scheduledTime) {
         const [hh, mm] = existingJob.scheduledTime.split(':');
-        if (hh) setScheduledHour(hh);
-        if (mm) setScheduledMinute(mm);
+        setScheduledHour(hh || '08');
+        setScheduledMinute(mm || '00');
+      } else {
+        setScheduledHour('08');
+        setScheduledMinute('00');
       }
+    } else if (!isEditMode) {
+      setJobNumber('');
+      setTitle('');
+      setDescription('');
+      setDriverId('');
+      setVehicleId('');
+      setPickupSearch('');
+      setPickupLat('');
+      setPickupLng('');
+      setContactName('');
+      setContactPhone('');
+      setFollowers('');
+      setJobStatus('Pending');
+      setCancellationReason('');
+      setScheduledDate('');
+      setScheduledHour('08');
+      setScheduledMinute('00');
     }
-  }, [existingJob]);
+  }, [existingJob, isEditMode]);
 
-  const handleDriverChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const selectedId = e.target.value;
+  const statusColorConfig: Record<string, { bg: string; text: string; border: string; label: string }> = {
+    Pending: { bg: '#fef3c7', text: '#b45309', border: '#fcd34d', label: 'รอมอบหมาย (Pending)' },
+    Assigned: { bg: '#eff6ff', text: '#1d4ed8', border: '#93c5fd', label: 'มอบหมายแล้ว (Assigned)' },
+    Started: { bg: '#eef2ff', text: '#4338ca', border: '#a5b4fc', label: 'เริ่มเดินทาง (Started)' },
+    Arrived: { bg: '#f0f9ff', text: '#0369a1', border: '#7dd3fc', label: 'ถึงจุดหมาย (Arrived)' },
+    Completed: { bg: '#ecfdf5', text: '#047857', border: '#6ee7b7', label: 'เสร็จสิ้น (Completed)' },
+    Cancelled: { bg: '#fff1f2', text: '#be123c', border: '#fda4af', label: 'ยกเลิก (Cancelled)' },
+  };
+
+  const handleDriverChange = (selectedId: string) => {
     setDriverId(selectedId);
+    
+    if (!selectedId) {
+      // If driver is removed, automatically set status to Pending
+      if (jobStatus !== 'Pending') {
+        setJobStatus('Pending');
+      }
+    } else {
+      // If driver is assigned and status was Pending, auto-upgrade to Assigned
+      if (jobStatus === 'Pending') {
+        setJobStatus('Assigned');
+      }
+      setError('');
+    }
     
     // Auto-assign driver's default vehicle if available
     const driver = drivers.find((d: any) => d.id === Number(selectedId));
     if (driver && driver.defaultVehicleId) {
-      setVehicleId(driver.defaultVehicleId);
+      setVehicleId(String(driver.defaultVehicleId));
+    } else if (driver && driver.vehicleId) {
+      setVehicleId(String(driver.vehicleId));
     } else {
       setVehicleId('');
     }
@@ -291,10 +338,21 @@ export const CreateJobPage: React.FC = () => {
 
   const handleFormSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    setHasAttemptedSubmit(true);
+    
+    // Rule: Non-Pending & Non-Cancelled status MUST have both driver and vehicle assigned
+    if (jobStatus !== 'Pending' && jobStatus !== 'Cancelled') {
+      if (!driverId || !vehicleId) {
+        // Show inline error below fields without global banner alert
+        return;
+      }
+    }
+
     if (jobStatus === 'Cancelled' && !cancellationReason.trim()) {
       setError('กรุณาระบุหมายเหตุ/เหตุผลในการยกเลิกงาน');
       return;
     }
+    setError('');
     setIsConfirmSubmitOpen(true);
   };
 
@@ -327,6 +385,11 @@ export const CreateJobPage: React.FC = () => {
         : await apiClient.post('/api/v1/admin/jobs', payload);
 
       if (res.data.success) {
+        await queryClient.invalidateQueries({ queryKey: ['admin-jobs'] });
+        await queryClient.invalidateQueries({ queryKey: ['admin-job-detail', jobId] });
+        await queryClient.invalidateQueries({ queryKey: ['admin-users-drivers'] });
+        await queryClient.invalidateQueries({ queryKey: ['admin-vehicles-list'] });
+
         if (res.data.warnings && res.data.warnings.length > 0) {
           setWarning(res.data.warnings.join(', '));
         } else {
@@ -346,6 +409,8 @@ export const CreateJobPage: React.FC = () => {
     try {
       setLoading(true);
       await apiClient.delete(`/api/v1/admin/jobs/${jobId}`);
+      await queryClient.invalidateQueries({ queryKey: ['admin-jobs'] });
+      await queryClient.invalidateQueries({ queryKey: ['admin-job-detail', jobId] });
       navigate('/jobs');
     } catch (err: any) {
       setError(err.response?.data?.message || 'เกิดข้อผิดพลาดในการลบงาน');
@@ -423,38 +488,95 @@ export const CreateJobPage: React.FC = () => {
               <FileText size={18} className="text-blue-600" />
               <span>ข้อมูลทั่วไปของงาน</span>
             </h3>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 min-w-[220px]">
               <label className="text-xs font-semibold text-slate-700 whitespace-nowrap flex items-center gap-1">
                 <UserCheck size={14} className="text-slate-400" />
                 <span>สถานะงาน:</span>
               </label>
-              <select
-                value={jobStatus}
-                onChange={(e) => setJobStatus(e.target.value)}
-                disabled={isReadOnly}
-                className={`px-3 py-1.5 text-xs border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 font-bold cursor-pointer transition-colors disabled:opacity-80 disabled:cursor-not-allowed ${
-                  jobStatus === 'Pending'
-                    ? 'bg-amber-50 text-amber-700 border-amber-300'
-                    : jobStatus === 'Assigned'
-                    ? 'bg-blue-50 text-blue-700 border-blue-300'
-                    : jobStatus === 'Started'
-                    ? 'bg-indigo-50 text-indigo-700 border-indigo-300'
-                    : jobStatus === 'Arrived'
-                    ? 'bg-sky-50 text-sky-700 border-sky-300'
-                    : jobStatus === 'Completed'
-                    ? 'bg-emerald-50 text-emerald-700 border-emerald-300'
-                    : jobStatus === 'Cancelled'
-                    ? 'bg-rose-50 text-rose-700 border-rose-300'
-                    : 'bg-slate-50 text-slate-800 border-slate-200'
-                }`}
-              >
-                <option value="Pending" className="bg-white text-amber-700 font-semibold">● รอมอบหมาย (Pending)</option>
-                <option value="Assigned" className="bg-white text-blue-700 font-semibold">● มอบหมายแล้ว (Assigned)</option>
-                <option value="Started" className="bg-white text-indigo-700 font-semibold">● เริ่มเดินทาง (Started)</option>
-                <option value="Arrived" className="bg-white text-sky-700 font-semibold">● ถึงจุดหมาย (Arrived)</option>
-                <option value="Completed" className="bg-white text-emerald-700 font-semibold">● เสร็จสิ้น (Completed)</option>
-                <option value="Cancelled" className="bg-white text-rose-700 font-semibold">● ยกเลิก (Cancelled)</option>
-              </select>
+              <div className="flex-1">
+                <FormControl size="small" fullWidth disabled={isReadOnly}>
+                  <Select
+                    value={jobStatus}
+                    onChange={(e) => {
+                      setJobStatus(e.target.value);
+                      setError('');
+                    }}
+                    sx={{
+                      fontSize: '0.8125rem',
+                      fontWeight: 700,
+                      backgroundColor: isReadOnly ? '#f1f5f9' : '#f8fafc',
+                      color: (statusColorConfig[jobStatus] || statusColorConfig.Pending).text,
+                      borderRadius: '0.5rem',
+                      '& .MuiOutlinedInput-notchedOutline': {
+                        borderColor: '#e2e8f0',
+                      },
+                      '&:hover .MuiOutlinedInput-notchedOutline': {
+                        borderColor: '#cbd5e1',
+                      },
+                      '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
+                        borderColor: '#3b82f6',
+                        borderWidth: '1.5px',
+                      },
+                      '& .MuiSelect-select': {
+                        paddingTop: '6px',
+                        paddingBottom: '6px',
+                        paddingLeft: '12px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '6px',
+                      },
+                    }}
+                    MenuProps={{
+                      slotProps: {
+                        paper: {
+                          sx: {
+                            borderRadius: '0.5rem',
+                            boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.1)',
+                            border: '1px solid #e2e8f0',
+                            marginTop: '4px',
+                          },
+                        },
+                      },
+                    }}
+                  >
+                    {Object.entries(statusColorConfig).map(([stKey, stVal]) => (
+                      <MenuItem
+                        key={stKey}
+                        value={stKey}
+                        sx={{
+                          fontSize: '0.8125rem',
+                          fontWeight: 600,
+                          color: stVal.text,
+                          py: 1,
+                          '&:hover': {
+                            backgroundColor: '#f8fafc',
+                          },
+                          '&.Mui-selected': {
+                            backgroundColor: '#f1f5f9',
+                            color: stVal.text,
+                            fontWeight: 700,
+                            '&:hover': {
+                              backgroundColor: '#e2e8f0',
+                            },
+                          },
+                        }}
+                      >
+                        <span
+                          style={{
+                            display: 'inline-block',
+                            width: 8,
+                            height: 8,
+                            borderRadius: '50%',
+                            backgroundColor: stVal.text,
+                            marginRight: 8,
+                          }}
+                        ></span>
+                        {stVal.label}
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+              </div>
             </div>
           </div>
 
@@ -511,14 +633,12 @@ export const CreateJobPage: React.FC = () => {
                 <CustomScrollSelect
                   value={scheduledHour}
                   onChange={(val) => setScheduledHour(val)}
-                  placeholder="ชั่วโมง"
                   options={hourOptions}
                   disabled={isReadOnly}
                 />
                 <CustomScrollSelect
                   value={scheduledMinute}
                   onChange={(val) => setScheduledMinute(val)}
-                  placeholder="นาที"
                   options={minuteOptions}
                   disabled={isReadOnly}
                 />
@@ -727,20 +847,24 @@ export const CreateJobPage: React.FC = () => {
               <label className="block text-xs font-semibold text-slate-700 mb-1 flex items-center gap-1">
                 <User size={14} className="text-slate-400" />
                 <span>เลือกพนักงานขับรถ (Driver)</span>
+                {jobStatus !== 'Pending' && jobStatus !== 'Cancelled' && <span className="text-rose-500 font-bold ml-0.5">*</span>}
               </label>
-              <select
+              <CustomScrollSelect
                 value={driverId}
                 onChange={handleDriverChange}
                 disabled={isReadOnly}
-                className="w-full px-3.5 py-2.5 text-sm bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 text-slate-800 font-medium disabled:bg-slate-100 disabled:text-slate-600 disabled:cursor-not-allowed"
-              >
-                <option value="">-- ไม่ระบุ (Pending) --</option>
-                {drivers.map((d: any) => (
-                  <option key={d.id} value={d.id}>
-                    {d.name} {d.status === 'Expired' ? '(⚠️ ใบขับขี่หมดอายุ)' : ''}
-                  </option>
-                ))}
-              </select>
+                placeholder="-- ไม่ระบุ (Pending) --"
+                options={drivers.map((d: any) => ({
+                  label: `${d.name} ${d.status === 'Expired' ? '(⚠️ ใบขับขี่หมดอายุ)' : ''}`,
+                  value: String(d.id),
+                }))}
+              />
+              {hasAttemptedSubmit && jobStatus !== 'Pending' && jobStatus !== 'Cancelled' && !driverId && (
+                <p className="text-xs text-rose-600 mt-1.5 font-medium flex items-center gap-1">
+                  <AlertTriangle size={13} className="text-rose-500 shrink-0" />
+                  <span>กรุณาเลือกพนักงานขับรถ</span>
+                </p>
+              )}
             </div>
 
             {/* Dropdown 2: ยานพาหนะ */}
@@ -748,29 +872,44 @@ export const CreateJobPage: React.FC = () => {
               <label className="block text-xs font-semibold text-slate-700 mb-1 flex items-center gap-1">
                 <Truck size={14} className="text-slate-400" />
                 <span>เลือกรถ / ยานพาหนะ (Vehicle)</span>
+                {jobStatus !== 'Pending' && jobStatus !== 'Cancelled' && <span className="text-rose-500 font-bold ml-0.5">*</span>}
               </label>
-              <select
+              <CustomScrollSelect
                 value={vehicleId}
-                onChange={(e) => setVehicleId(e.target.value)}
+                onChange={(val) => setVehicleId(val)}
                 disabled={isReadOnly}
-                className="w-full px-3.5 py-2.5 text-sm bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 text-slate-800 font-medium disabled:bg-slate-100 disabled:text-slate-600 disabled:cursor-not-allowed"
-              >
-                <option value="">-- ไม่ระบุ --</option>
-                {vehicles.map((v: any) => (
-                  <option key={v.id} value={v.id}>
-                    {v.plate}
-                  </option>
-                ))}
-              </select>
+                placeholder="-- ไม่ระบุ --"
+                options={vehicles.map((v: any) => ({
+                  label: v.plate,
+                  value: String(v.id),
+                }))}
+              />
+              {hasAttemptedSubmit && jobStatus !== 'Pending' && jobStatus !== 'Cancelled' && !vehicleId && (
+                <p className="text-xs text-rose-600 mt-1.5 font-medium flex items-center gap-1">
+                  <AlertTriangle size={13} className="text-rose-500 shrink-0" />
+                  <span>กรุณาเลือกรถ / ยานพาหนะ</span>
+                </p>
+              )}
             </div>
 
             {/* Remark / Cancellation Reason when Cancelled */}
             {jobStatus === 'Cancelled' && (
-              <div className="md:col-span-2">
-                <label className="block text-xs font-semibold text-rose-700 mb-1 flex items-center gap-1">
-                  <AlertTriangle size={14} className="text-rose-600" />
-                  <span>หมายเหตุ / เหตุผลในการยกเลิกงาน (Cancellation Remark) *</span>
-                </label>
+              <div className="md:col-span-2 space-y-2">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1.5">
+                  <label className="block text-xs font-semibold text-rose-700 flex items-center gap-1">
+                    <AlertTriangle size={14} className="text-rose-600" />
+                    <span>หมายเหตุ / เหตุผลในการยกเลิกงาน (Cancellation Remark) *</span>
+                  </label>
+                  {(existingJob?.cancelledByName || existingJob?.cancelledbyname) && (
+                    <span className="inline-flex items-center gap-1.5 text-xs text-rose-700 font-medium bg-rose-50 px-2.5 py-1 rounded-lg border border-rose-200/80">
+                      <User size={13} className="text-rose-500" />
+                      <span>ยกเลิกโดย: <strong className="font-semibold text-rose-900">{existingJob?.cancelledByName || existingJob?.cancelledbyname}</strong></span>
+                      {(existingJob?.cancelledAt || existingJob?.cancelledat) && (
+                        <span className="text-rose-500 font-normal">({formatDateThai(existingJob?.cancelledAt || existingJob?.cancelledat)})</span>
+                      )}
+                    </span>
+                  )}
+                </div>
                 <textarea
                   rows={2}
                   value={cancellationReason}

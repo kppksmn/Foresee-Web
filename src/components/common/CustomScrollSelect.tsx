@@ -1,78 +1,106 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React from 'react';
 import {
-  ChevronDown
-} from 'lucide-react';
+  Select,
+  MenuItem,
+  FormControl,
+} from '@mui/material';
+import type { SelectChangeEvent } from '@mui/material';
 
 interface CustomSelectProps {
   value: string;
   onChange: (val: string) => void;
-  placeholder: string;
+  placeholder?: string;
   options: { label: string; value: string }[];
   openUpward?: boolean;
   disabled?: boolean;
+  size?: 'small' | 'medium';
+  className?: string;
 }
 
 export const CustomScrollSelect: React.FC<CustomSelectProps> = ({
   value,
   onChange,
-  placeholder,
+  placeholder = '',
   options,
-  openUpward = false,
-  disabled = false
+  disabled = false,
+  size = 'small',
+  className = ''
 }) => {
-  const [isOpen, setIsOpen] = useState(false);
-  const containerRef = useRef<HTMLDivElement>(null);
-
-  const selectedOption = options.find((o) => o.value === value);
-
-  useEffect(() => {
-    const handleClickOutside = (e: MouseEvent) => {
-      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
-        setIsOpen(false);
-      }
-    };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
+  const handleChange = (event: SelectChangeEvent<string>) => {
+    onChange(event.target.value);
+  };
 
   return (
-    <div className={`relative w-full ${isOpen ? 'z-[100]' : 'z-10'}`} ref={containerRef}>
-      {/* Target Trigger Button */}
-      <button
-        type="button"
-        disabled={disabled}
-        onClick={() => !disabled && setIsOpen(!isOpen)}
-        className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-lg flex items-center justify-between focus:outline-none focus:ring-2 focus:ring-blue-500/20 text-slate-800 font-medium cursor-pointer disabled:bg-slate-100 disabled:text-slate-600 disabled:cursor-not-allowed"
+    <FormControl fullWidth size={size} disabled={disabled} className={className}>
+      <Select
+        value={value ?? ''}
+        onChange={handleChange}
+        displayEmpty
+        sx={{
+          fontSize: '0.8125rem',
+          backgroundColor: disabled ? '#f1f5f9' : '#f8fafc',
+          borderRadius: '0.5rem',
+          '& .MuiOutlinedInput-notchedOutline': {
+            borderColor: '#e2e8f0',
+          },
+          '&:hover .MuiOutlinedInput-notchedOutline': {
+            borderColor: '#cbd5e1',
+          },
+          '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
+            borderColor: '#3b82f6',
+            borderWidth: '1.5px',
+          },
+          '& .MuiSelect-select': {
+            paddingTop: '8px',
+            paddingBottom: '8px',
+            paddingLeft: '12px',
+            color: value ? '#1e293b' : '#94a3b8',
+            fontWeight: value ? 500 : 400,
+          },
+        }}
+        MenuProps={{
+          slotProps: {
+            paper: {
+              sx: {
+                maxHeight: 240,
+                borderRadius: '0.5rem',
+                boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1)',
+                border: '1px solid #e2e8f0',
+                marginTop: '4px',
+                '& .MuiMenuItem-root': {
+                  fontSize: '0.8125rem',
+                  padding: '8px 14px',
+                  '&:hover': {
+                    backgroundColor: '#eff6ff',
+                    color: '#2563eb',
+                  },
+                  '&.Mui-selected': {
+                    backgroundColor: '#dbeafe',
+                    color: '#1d4ed8',
+                    fontWeight: 600,
+                    '&:hover': {
+                      backgroundColor: '#bfdbfe',
+                    },
+                  },
+                },
+              },
+            },
+          },
+        }}
       >
-        <span className={selectedOption ? 'text-slate-800' : 'text-slate-400'}>
-          {selectedOption ? selectedOption.label : placeholder}
-        </span>
-        <ChevronDown size={14} className="text-slate-400 shrink-0" />
-      </button>
-
-      {/* Controlled Height Scrollable Dropdown Menu */}
-      {isOpen && (
-        <div
-          className={`absolute z-[100] left-0 right-0 bg-white border border-slate-200 rounded-lg shadow-xl max-h-36 overflow-y-auto divide-y divide-slate-50 py-1 ${
-            openUpward ? 'bottom-full mb-1' : 'top-full mt-1'
-          }`}
-        >
-          {options.map((opt) => (
-            <div
-              key={opt.value}
-              onClick={() => {
-                onChange(opt.value);
-                setIsOpen(false);
-              }}
-              className={`px-3 py-1.5 text-xs cursor-pointer hover:bg-blue-50 hover:text-blue-600 transition-colors ${
-                opt.value === value ? 'bg-blue-50 font-bold text-blue-600' : 'text-slate-700'
-              }`}
-            >
+        {placeholder ? (
+          <MenuItem value="" sx={{ color: '#94a3b8' }}>
+            <em>{placeholder}</em>
+          </MenuItem>
+        ) : null}
+        {options
+          .filter((opt) => !placeholder || opt.value !== '')
+          .map((opt, idx) => (
+            <MenuItem key={`${opt.value}-${idx}`} value={opt.value}>
               {opt.label}
-            </div>
+            </MenuItem>
           ))}
-        </div>
-      )}
-    </div>
+      </Select>
+    </FormControl>
   );
 };
