@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import {
   LayoutDashboard,
@@ -17,8 +17,13 @@ import {
   PanelLeftOpen,
   History,
   ShieldCheck,
-  FolderTree
+  FolderTree,
+  FileText,
+  Globe
 } from 'lucide-react';
+import { useQuery } from '@tanstack/react-query';
+import apiClient from '../../api/client';
+import type { UserNavMenu } from '../../features/users/model/types';
 
 interface SidebarItem {
   text: string;
@@ -28,7 +33,27 @@ interface SidebarItem {
   subItems?: { text: string; icon: any; path: string; role?: string }[];
 }
 
-const sidebarItems: SidebarItem[] = [
+const getMenuIcon = (nameEn: string, endpoint?: string | null) => {
+  const clean = (nameEn || '').toLowerCase();
+  const ep = (endpoint || '').toLowerCase();
+
+  if (clean.includes('dashboard') || ep.includes('dashboard')) return LayoutDashboard;
+  if (clean.includes('history') || ep.includes('history')) return History;
+  if (clean.includes('active') || clean.includes('clock') || ep === '/jobs') return Clock;
+  if (clean.includes('job') || ep.includes('jobs')) return ClipboardList;
+  if (clean.includes('vehicle type') || ep.includes('vehicle-types')) return Tag;
+  if (clean.includes('vehicle list') || ep.includes('vehicles')) return List;
+  if (clean.includes('vehicle') || clean.includes('truck')) return Truck;
+  if (clean.includes('user') || clean.includes('staff') || ep.includes('users')) return Users;
+  if (clean.includes('audit') || clean.includes('log') || ep.includes('audit-logs')) return ShieldCheck;
+  if (clean.includes('menu') || ep.includes('menu-managements')) return FolderTree;
+  if (clean.includes('report') || ep.includes('reports')) return FileText;
+  if (clean.includes('setting') || ep.includes('settings')) return Globe;
+
+  return ep ? FileText : FolderTree;
+};
+
+const defaultSidebarItems: SidebarItem[] = [
   { text: 'ภาพรวมระบบ', icon: LayoutDashboard, path: '/dashboard' },
   {
     text: 'รายการงาน',
@@ -57,13 +82,49 @@ export const AdminLayout: React.FC = () => {
   const [openSubmenus, setOpenSubmenus] = useState<{ [key: string]: boolean }>({
     'รายการงาน': true,
     'จัดการยานพาหนะ': true,
+    'Jobs': true,
+    'Vehicles': true,
   });
   const navigate = useNavigate();
   const location = useLocation();
   const userRole = (localStorage.getItem('role') || '').toLowerCase();
-  const visibleSidebarItems = sidebarItems.filter(
-    (item) => !item.role || item.role.toLowerCase() === userRole
-  );
+
+  // Fetch dynamic navigable menus for the logged in user
+  const { data: userMenus } = useQuery<UserNavMenu[]>({
+    queryKey: ['me-nav-menus'],
+    queryFn: async () => {
+      const res = await apiClient.get('/api/v1/auth/me/menus');
+      return res.data?.data || [];
+    },
+    staleTime: 30 * 1000,
+  });
+
+  const dynamicSidebarItems: SidebarItem[] = useMemo(() => {
+    if (!userMenus || userMenus.length === 0) {
+      return defaultSidebarItems.filter(
+        (item) => !item.role || item.role.toLowerCase() === userRole
+      );
+    }
+
+    return userMenus.map((menu) => {
+      const icon = getMenuIcon(menu.nameEn, menu.endpoint);
+      const subItems =
+        menu.children && menu.children.length > 0
+          ? menu.children.map((child: UserNavMenu) => ({
+              text: child.nameTh || child.nameEn,
+              icon: getMenuIcon(child.nameEn, child.endpoint),
+              path: child.endpoint || '',
+            }))
+          : undefined;
+
+      return {
+        text: menu.nameTh || menu.nameEn,
+        icon,
+        path: menu.endpoint || undefined,
+        subItems,
+      };
+    });
+  }, [userMenus, userRole]);
 
   const handleLogout = () => {
     localStorage.removeItem('access_token');
@@ -144,7 +205,7 @@ export const AdminLayout: React.FC = () => {
 
         {/* Navigation */}
         <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto overflow-x-hidden">
-          {visibleSidebarItems.map((item) => {
+          {dynamicSidebarItems.map((item) => {
             const Icon = item.icon;
 
             if (item.subItems) {

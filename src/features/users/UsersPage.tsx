@@ -14,10 +14,12 @@ import {
   Pencil,
   Trash2,
   RotateCcw,
-  KeyRound
+  KeyRound,
+  ShieldCheck,
 } from 'lucide-react';
 import { LicenseStatusBadge } from '../../components/common/StatusBadge';
 import { CustomScrollSelect } from '../../components/common/CustomScrollSelect';
+import { UserMenuAssignmentModal } from './components/UserMenuAssignmentModal';
 
 import { useQuery } from '@tanstack/react-query';
 import apiClient from '../../api/client';
@@ -30,6 +32,13 @@ export const UsersPage: React.FC = () => {
   const [page, setPage] = useState<number>(1);
   const pageSize = 10;
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [permissionsModalUser, setPermissionsModalUser] = useState<{
+    id: number;
+    username: string;
+    name?: string;
+    role: string;
+    employeeId?: string;
+  } | null>(null);
 
   // Form states
   const [editingUserId, setEditingUserId] = useState<number | null>(null);
@@ -539,13 +548,25 @@ export const UsersPage: React.FC = () => {
                           )}
                         </td>
                         <td className="px-6 py-4 text-right align-middle">
-                          <button
-                            onClick={() => openEditModal(user)}
-                            className="px-3 py-1.5 text-xs font-semibold text-blue-600 hover:text-blue-700 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors inline-flex items-center gap-1 cursor-pointer"
-                          >
-                            <Pencil size={13} />
-                            <span>แก้ไข</span>
-                          </button>
+                          <div className="flex items-center justify-end gap-1.5">
+                            <button
+                              type="button"
+                              onClick={() => setPermissionsModalUser(user)}
+                              title="กำหนดสิทธิ์การใช้งานเมนู"
+                              className="px-2.5 py-1.5 text-xs font-semibold text-amber-700 hover:text-amber-800 bg-amber-50 hover:bg-amber-100 rounded-lg transition-colors inline-flex items-center gap-1 cursor-pointer"
+                            >
+                              <ShieldCheck size={13} />
+                              <span className="hidden sm:inline">สิทธิ์เมนู</span>
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => openEditModal(user)}
+                              className="px-3 py-1.5 text-xs font-semibold text-blue-600 hover:text-blue-700 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors inline-flex items-center gap-1 cursor-pointer"
+                            >
+                              <Pencil size={13} />
+                              <span>แก้ไข</span>
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     ))
@@ -984,6 +1005,16 @@ export const UsersPage: React.FC = () => {
         type="info"
         onConfirm={handleResetPassword}
         onCancel={() => setResetPasswordConfirm({ isOpen: false, userId: null, userName: '' })}
+      />
+
+      {/* User Menu Permissions Assignment Modal */}
+      <UserMenuAssignmentModal
+        isOpen={!!permissionsModalUser}
+        user={permissionsModalUser}
+        onClose={() => setPermissionsModalUser(null)}
+        onSaved={() => {
+          showAlert('บันทึกสิทธิ์การใช้งานเมนูของผู้ใช้เรียบร้อยแล้ว', 'success');
+        }}
       />
 
       {/* Alert Modal */}
