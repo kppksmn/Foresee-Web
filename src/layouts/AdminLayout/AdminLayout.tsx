@@ -24,7 +24,8 @@ interface SidebarItem {
   text: string;
   icon: any;
   path?: string;
-  subItems?: { text: string; icon: any; path: string }[];
+  role?: string;
+  subItems?: { text: string; icon: any; path: string; role?: string }[];
 }
 
 const sidebarItems: SidebarItem[] = [
@@ -47,7 +48,7 @@ const sidebarItems: SidebarItem[] = [
   },
   { text: 'พนักงาน & ผู้ใช้', icon: Users, path: '/users' },
   { text: 'Audit Log', icon: ShieldCheck, path: '/audit-logs' },
-  { text: 'จัดการเมนู', icon: FolderTree, path: '/menu-managements' },
+  { text: 'จัดการเมนู', icon: FolderTree, path: '/menu-managements', role: 'Admin' },
 ];
 
 export const AdminLayout: React.FC = () => {
@@ -59,6 +60,10 @@ export const AdminLayout: React.FC = () => {
   });
   const navigate = useNavigate();
   const location = useLocation();
+  const userRole = (localStorage.getItem('role') || '').toLowerCase();
+  const visibleSidebarItems = sidebarItems.filter(
+    (item) => !item.role || item.role.toLowerCase() === userRole
+  );
 
   const handleLogout = () => {
     localStorage.removeItem('access_token');
@@ -139,7 +144,7 @@ export const AdminLayout: React.FC = () => {
 
         {/* Navigation */}
         <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto overflow-x-hidden">
-          {sidebarItems.map((item) => {
+          {visibleSidebarItems.map((item) => {
             const Icon = item.icon;
 
             if (item.subItems) {

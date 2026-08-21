@@ -43,6 +43,9 @@ export const LoginPage: React.FC = () => {
         if (res.data.data.username) {
           localStorage.setItem('username', res.data.data.username);
         }
+        if (res.data.data.role) {
+          localStorage.setItem('role', res.data.data.role);
+        }
         if (rememberMe) {
           localStorage.setItem('remembered_username', cleanUsername);
         } else {

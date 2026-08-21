@@ -206,6 +206,27 @@ export const MenuManagementPage: React.FC = () => {
     });
   }
 
+  const role = (localStorage.getItem('role') || '').toLowerCase();
+  if (role !== 'admin') {
+    return (
+      <section className="rounded-2xl border border-slate-200 bg-white p-8 shadow-xs">
+        <div className="max-w-2xl space-y-4">
+          <div className="inline-flex h-12 w-12 items-center justify-center rounded-xl bg-rose-50 text-rose-600">
+            <ShieldAlert className="h-6 w-6" />
+          </div>
+          <div className="space-y-1.5">
+            <h1 className="text-xl font-bold text-slate-900">
+              คุณไม่มีสิทธิ์เข้าดูหน้าจัดการเมนู (Access Restricted)
+            </h1>
+            <p className="text-xs leading-relaxed text-slate-500">
+              หน้านี้สงวนสิทธิ์เฉพาะผู้ดูแลระบบ (Admin) เท่านั้น หากต้องการเข้าถึงโปรดติดต่อผู้ดูแลระบบ
+            </p>
+          </div>
+        </div>
+      </section>
+    );
+  }
+
   if (treeQuery.isPending && tree.length === 0) {
     return (
       <div className="flex h-[calc(100vh-8rem)] items-center justify-center rounded-2xl border border-slate-200 bg-white p-8">
