@@ -78,7 +78,7 @@ export const LoginPage: React.FC = () => {
               <p className="text-xs font-semibold text-blue-600 mt-0.5">ระบบบริหารจัดการพนักงานและยานพาหนะ</p>
             </div>
             <p className="text-xs text-slate-400 pt-1">
-              เข้าสู่ระบบสำหรับผู้ดูแลระบบ (Admin Only)
+              เข้าสู่ระบบเพื่อจัดการงานและข้อมูล
             </p>
           </div>
 
@@ -172,7 +172,7 @@ export const LoginPage: React.FC = () => {
           {/* Footer note */}
           <div className="text-center border-t border-slate-100 pt-4 flex items-center justify-center gap-1.5 text-xs text-slate-400">
             <ShieldCheck size={14} className="text-slate-400" />
-            <span>ระบบจำกัดการเข้าใช้งานเฉพาะสิทธิ์ Admin</span>
+            <span>ระบบพร้อมใช้งานสำหรับผู้ใช้ทุกคน</span>
           </div>
         </div>
 

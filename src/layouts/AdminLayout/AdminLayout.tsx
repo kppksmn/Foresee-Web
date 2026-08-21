@@ -263,15 +263,21 @@ export const AdminLayout: React.FC = () => {
 
           <div className="flex items-center gap-2.5 sm:gap-4 shrink-0">
             {/* User Profile */}
-            <div className="flex items-center gap-2 sm:gap-3">
-              <div className="w-8 h-8 rounded-full bg-blue-600 text-white font-semibold flex items-center justify-center text-xs shrink-0 shadow-xs">
-                AD
-              </div>
-              <div className="hidden md:block text-left">
-                <div className="text-xs font-bold text-slate-900 leading-tight">Administrator</div>
-                <div className="text-[11px] text-slate-500">system@foresee.com</div>
-              </div>
-            </div>
+            {(() => {
+              const currentUsername = localStorage.getItem('username') || 'Administrator';
+              const initials = currentUsername.length >= 2 ? currentUsername.substring(0, 2).toUpperCase() : currentUsername.toUpperCase();
+              return (
+                <div className="flex items-center gap-2 sm:gap-3">
+                  <div className="w-8 h-8 rounded-full bg-blue-600 text-white font-semibold flex items-center justify-center text-xs shrink-0 shadow-xs">
+                    {initials}
+                  </div>
+                  <div className="hidden md:block text-left">
+                    <div className="text-xs font-bold text-slate-900 leading-tight capitalize">{currentUsername}</div>
+                    <div className="text-[11px] text-slate-500">{currentUsername}@foresee.com</div>
+                  </div>
+                </div>
+              );
+            })()}
           </div>
         </header>
 
