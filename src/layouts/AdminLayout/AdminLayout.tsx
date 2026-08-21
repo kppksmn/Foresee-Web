@@ -16,7 +16,8 @@ import {
   PanelLeftClose,
   PanelLeftOpen,
   History,
-  ShieldCheck
+  ShieldCheck,
+  FolderTree
 } from 'lucide-react';
 
 interface SidebarItem {
@@ -46,6 +47,7 @@ const sidebarItems: SidebarItem[] = [
   },
   { text: 'พนักงาน & ผู้ใช้', icon: Users, path: '/users' },
   { text: 'Audit Log', icon: ShieldCheck, path: '/audit-logs' },
+  { text: 'จัดการเมนู', icon: FolderTree, path: '/menu-managements' },
 ];
 
 export const AdminLayout: React.FC = () => {

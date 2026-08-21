@@ -10,6 +10,7 @@ import { MapPage } from '../../features/map/MapPage';
 import { VehiclesPage } from '../../features/vehicles/VehiclesPage';
 import { VehicleTypesPage } from '../../features/vehicles/VehicleTypesPage';
 import { AuditLogsPage } from '../../features/audit/AuditLogsPage';
+import { MenuManagementPage } from '../../features/menu-management/MenuManagementPage';
 
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const token = localStorage.getItem('access_token');
@@ -43,6 +44,7 @@ export const AppRouter: React.FC = () => {
           <Route path="vehicles" element={<VehiclesPage />} />
           <Route path="vehicle-types" element={<VehicleTypesPage />} />
           <Route path="audit-logs" element={<AuditLogsPage />} />
+          <Route path="menu-managements" element={<MenuManagementPage />} />
           <Route path="reports" element={<div className="p-4 bg-white rounded-xl border border-slate-200">รายงานเชิงวิเคราะห์ (Reports & Analytics)</div>} />
           <Route path="settings" element={<div className="p-4 bg-white rounded-xl border border-slate-200">ตั้งค่าระบบ (System Settings)</div>} />
         </Route>
