@@ -2,8 +2,9 @@ import React, { useState } from 'react';
 import { Search, History, RefreshCw, User, Tag, Clock, Calendar, Filter, X } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import apiClient from '../../api/client';
-import { formatDateThai } from '../../utils/dateUtils';
+import { formatDateTimeThai } from '../../utils/dateUtils';
 import { CustomScrollSelect } from '../../components/common/CustomScrollSelect';
+import { TableScrollContainer } from '../../components/common/TableScrollContainer';
 
 export const AuditLogsPage: React.FC = () => {
   const [search, setSearch] = useState('');
@@ -26,6 +27,30 @@ export const AuditLogsPage: React.FC = () => {
       }
     },
   });
+
+  // Prepare user dropdown options with Admin guaranteed at the top
+  const userOptions = React.useMemo(() => {
+    const list: any[] = [...users];
+    const hasAdmin = list.some((u: any) => u.username?.toLowerCase() === 'admin');
+    if (!hasAdmin) {
+      list.unshift({ id: 1, username: 'admin', name: 'admin', role: 'Admin' });
+    }
+
+    // Sort Admins first, then by username
+    list.sort((a: any, b: any) => {
+      if (a.role === 'Admin' && b.role !== 'Admin') return -1;
+      if (a.role !== 'Admin' && b.role === 'Admin') return 1;
+      return (a.username || '').localeCompare(b.username || '');
+    });
+
+    return list.map((u: any) => {
+      const displayName = u.name && u.name !== u.username ? `${u.name} (${u.username})` : (u.username || `User #${u.id}`);
+      return {
+        label: `${displayName} [${u.role || 'User'}]`,
+        value: String(u.id),
+      };
+    });
+  }, [users]);
 
   // Fetch audit logs with filters & pagination
   const { data: auditData = { items: [], totalCount: 0, totalPages: 1 }, isLoading, refetch } = useQuery({
@@ -105,19 +130,19 @@ export const AuditLogsPage: React.FC = () => {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4">
         <div>
-          <h2 className="text-xl font-bold text-slate-900 tracking-tight flex items-center gap-2">
-            <History className="text-blue-600" size={24} />
+          <h2 className="text-lg sm:text-xl font-bold text-slate-900 tracking-tight flex items-center gap-2">
+            <History className="text-blue-600 shrink-0" size={24} />
             <span>Audit Log (ประวัติการทำงานในระบบ)</span>
           </h2>
-          <p className="text-sm text-slate-500 mt-0.5">
+          <p className="text-xs sm:text-sm text-slate-500 mt-0.5">
             บันทึกประวัติการสร้าง แก้ไข และลบข้อมูลทั้งหมดในระบบ
           </p>
         </div>
         <button
           onClick={() => refetch()}
-          className="inline-flex items-center gap-2 px-3.5 py-2 bg-white hover:bg-slate-50 text-slate-700 font-medium text-sm rounded-xl border border-slate-200 shadow-xs transition-colors cursor-pointer"
+          className="self-start sm:self-auto inline-flex items-center gap-2 px-3.5 py-2 bg-white hover:bg-slate-50 text-slate-700 font-medium text-sm rounded-xl border border-slate-200 shadow-xs transition-colors cursor-pointer"
         >
           <RefreshCw size={16} />
           <span>รีเฟรชข้อมูล</span>
@@ -125,8 +150,8 @@ export const AuditLogsPage: React.FC = () => {
       </div>
 
       {/* Filter Bar */}
-      <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs space-y-4">
-        <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+      <div className="bg-white p-3.5 sm:p-5 rounded-xl sm:rounded-2xl border border-slate-200/80 shadow-xs space-y-3.5 sm:space-y-4">
+        <div className="flex items-center justify-between pb-2.5 sm:pb-3 border-b border-slate-100">
           <span className="text-xs font-bold text-slate-700 uppercase tracking-wider flex items-center gap-1.5">
             <Filter size={15} className="text-blue-600" />
             <span>ตัวกรองการค้นหา (Search & Filters)</span>
@@ -142,7 +167,7 @@ export const AuditLogsPage: React.FC = () => {
           )}
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-2.5 sm:gap-3">
           {/* Keyword Search */}
           <div className="relative">
             <label className="block text-[11px] font-semibold text-slate-600 mb-1">คำค้นหา</label>
@@ -168,10 +193,7 @@ export const AuditLogsPage: React.FC = () => {
               value={selectedUserId}
               onChange={(val) => setSelectedUserId(val)}
               placeholder="ทั้งหมด (All Users)"
-              options={users.map((u: any) => ({
-                label: `${u.displayName || u.username || u.name || 'User #' + u.id} (${u.role})`,
-                value: String(u.id),
-              }))}
+              options={userOptions}
             />
           </div>
 
@@ -226,15 +248,15 @@ export const AuditLogsPage: React.FC = () => {
 
       {/* Table */}
       <div className="bg-white rounded-xl border border-slate-200/80 shadow-xs overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-sm text-slate-600">
+        <TableScrollContainer>
+          <table className="w-full min-w-[860px] text-left text-sm text-slate-600">
             <thead className="bg-slate-50/80 border-b border-slate-200/80 text-xs font-semibold text-slate-500 uppercase tracking-wider">
               <tr>
-                <th className="px-5 py-3.5">วันเวลา</th>
-                <th className="px-5 py-3.5">ผู้ทำรายการ</th>
-                <th className="px-5 py-3.5">การกระทำ (Action)</th>
-                <th className="px-5 py-3.5">หมวดหมู่ (Entity)</th>
-                <th className="px-5 py-3.5">รายละเอียด</th>
+                <th className="px-5 py-3.5 whitespace-nowrap min-w-[180px]">วันเวลา</th>
+                <th className="px-5 py-3.5 whitespace-nowrap min-w-[150px]">ผู้ทำรายการ</th>
+                <th className="px-5 py-3.5 whitespace-nowrap min-w-[120px]">การกระทำ (Action)</th>
+                <th className="px-5 py-3.5 whitespace-nowrap min-w-[150px]">หมวดหมู่ (Entity)</th>
+                <th className="px-5 py-3.5 min-w-[280px]">รายละเอียด</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
@@ -253,26 +275,28 @@ export const AuditLogsPage: React.FC = () => {
               ) : (
                 logs.map((log: any) => (
                   <tr key={log.id} className="hover:bg-slate-50/60 transition-colors">
-                    <td className="px-5 py-4 whitespace-nowrap text-xs text-slate-500 font-mono flex items-center gap-1.5">
-                      <Clock size={14} className="text-slate-400" />
-                      <span>{log.createdAt ? `${formatDateThai(log.createdAt.split(' ')[0])} ${log.createdAt.split(' ')[1] || ''}` : '-'}</span>
+                    <td className="px-5 py-4 whitespace-nowrap align-middle">
+                      <div className="flex items-center gap-1.5 text-xs text-slate-500 font-mono">
+                        <Clock size={14} className="text-slate-400 shrink-0" />
+                        <span>{formatDateTimeThai(log.createdAt)}</span>
+                      </div>
                     </td>
-                    <td className="px-5 py-4 whitespace-nowrap font-medium text-slate-900">
+                    <td className="px-5 py-4 whitespace-nowrap align-middle font-medium text-slate-900">
                       <div className="flex items-center gap-1.5">
-                        <User size={14} className="text-slate-400" />
+                        <User size={14} className="text-slate-400 shrink-0" />
                         <span>{log.userName || 'System'}</span>
                       </div>
                     </td>
-                    <td className="px-5 py-4 whitespace-nowrap">
+                    <td className="px-5 py-4 whitespace-nowrap align-middle">
                       {getActionBadge(log.action)}
                     </td>
-                    <td className="px-5 py-4 whitespace-nowrap text-xs font-semibold text-slate-600">
+                    <td className="px-5 py-4 whitespace-nowrap align-middle text-xs font-semibold text-slate-600">
                       <div className="flex items-center gap-1">
-                        <Tag size={13} className="text-slate-400" />
+                        <Tag size={13} className="text-slate-400 shrink-0" />
                         <span>{getEntityLabel(log.entityName)}</span>
                       </div>
                     </td>
-                    <td className="px-5 py-4 text-slate-700">
+                    <td className="px-5 py-4 align-middle text-slate-700 text-xs sm:text-sm leading-relaxed">
                       {log.details || '-'}
                     </td>
                   </tr>
@@ -280,7 +304,7 @@ export const AuditLogsPage: React.FC = () => {
               )}
             </tbody>
           </table>
-        </div>
+        </TableScrollContainer>
 
         {/* Pagination Footer */}
         {totalPages > 1 && (

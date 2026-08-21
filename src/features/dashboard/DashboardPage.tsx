@@ -44,12 +44,12 @@ export const DashboardPage: React.FC = () => {
   const getActiveChartData = () => {
     if (timeMode === 'monthly') return dashboardData?.monthlyStats || [];
     if (timeMode === 'yearly') return dashboardData?.yearlyStats || [];
-    return dashboardData?.hourlyStats || [
-      { time: '08:00', completed: 0, inprogress: 0, cancelled: 0 },
-      { time: '12:00', completed: 0, inprogress: 0, cancelled: 0 },
-      { time: '16:00', completed: 0, inprogress: 0, cancelled: 0 },
-      { time: '20:00', completed: 0, inprogress: 0, cancelled: 0 },
-    ];
+    return dashboardData?.hourlyStats || Array.from({ length: 24 }, (_, i) => ({
+      time: `${String(i).padStart(2, '0')}:00`,
+      completed: 0,
+      inprogress: 0,
+      cancelled: 0,
+    }));
   };
 
   const chartData = getActiveChartData();
@@ -63,74 +63,38 @@ export const DashboardPage: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      {/* Page Title & Filter Tabs */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h2 className="text-xl font-bold text-slate-900 tracking-tight">
-            ภาพรวมการขนส่ง (Logistics Overview)
-          </h2>
-          <p className="text-sm text-slate-500 mt-0.5">
-            รายงานสรุปผลการปฏิบัติงานของพนักงานขับรถและสถิติตามช่วงเวลา
-          </p>
-        </div>
-
-        {/* Filter Period Tabs */}
-        <div className="inline-flex p-1 bg-slate-200/70 rounded-xl">
-          <button
-            onClick={() => setTimeMode('daily')}
-            className={`px-3.5 py-1.5 text-xs font-semibold rounded-lg transition-all cursor-pointer ${
-              timeMode === 'daily'
-                ? 'bg-white text-blue-600 shadow-xs'
-                : 'text-slate-600 hover:text-slate-900'
-            }`}
-          >
-            รายวัน (Today)
-          </button>
-          <button
-            onClick={() => setTimeMode('monthly')}
-            className={`px-3.5 py-1.5 text-xs font-semibold rounded-lg transition-all cursor-pointer ${
-              timeMode === 'monthly'
-                ? 'bg-white text-blue-600 shadow-xs'
-                : 'text-slate-600 hover:text-slate-900'
-            }`}
-          >
-            รายเดือน (Monthly)
-          </button>
-          <button
-            onClick={() => setTimeMode('yearly')}
-            className={`px-3.5 py-1.5 text-xs font-semibold rounded-lg transition-all cursor-pointer ${
-              timeMode === 'yearly'
-                ? 'bg-white text-blue-600 shadow-xs'
-                : 'text-slate-600 hover:text-slate-900'
-            }`}
-          >
-            รายปี (Yearly)
-          </button>
-        </div>
+      {/* Page Title */}
+      <div>
+        <h2 className="text-lg sm:text-xl font-bold text-slate-900 tracking-tight">
+          ภาพรวมการขนส่ง (Logistics Overview)
+        </h2>
+        <p className="text-xs sm:text-sm text-slate-500 mt-0.5">
+          รายงานสรุปผลการปฏิบัติงานของพนักงานขับรถและสถิติตามช่วงเวลา
+        </p>
       </div>
 
       {/* KPI Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-4">
         {kpis.map((kpi, idx) => {
           const Icon = kpi.icon;
           return (
             <div
               key={idx}
-              className="bg-white p-4 rounded-xl border border-slate-200/80 shadow-xs hover:border-slate-300 transition-all"
+              className="bg-white p-3 sm:p-4 rounded-xl border border-slate-200/80 shadow-xs hover:border-slate-300 transition-all"
             >
               <div className="flex items-center justify-between">
-                <div className={`p-2 rounded-lg ${kpi.bg} ${kpi.color}`}>
-                  <Icon size={18} />
+                <div className={`p-1.5 sm:p-2 rounded-lg ${kpi.bg} ${kpi.color}`}>
+                  <Icon size={16} className="sm:w-[18px] sm:h-[18px]" />
                 </div>
-                <span className="text-[11px] font-semibold text-slate-500">
+                <span className="text-[10px] sm:text-[11px] font-semibold text-slate-500 truncate max-w-[90px] sm:max-w-none text-right">
                   {kpi.change}
                 </span>
               </div>
-              <div className="mt-3">
-                <div className="text-2xl font-bold text-slate-900 tracking-tight">
+              <div className="mt-2 sm:mt-3">
+                <div className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">
                   {kpi.value}
                 </div>
-                <div className="text-xs font-medium text-slate-500 mt-0.5">
+                <div className="text-[11px] sm:text-xs font-medium text-slate-500 mt-0.5 truncate">
                   {kpi.label}
                 </div>
               </div>
@@ -140,24 +104,58 @@ export const DashboardPage: React.FC = () => {
       </div>
 
       {/* Charts Section */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
         {/* Main Chart */}
-        <div className="lg:col-span-2 bg-white p-6 rounded-xl border border-slate-200/80 shadow-xs">
-          <div className="flex items-center justify-between mb-6">
+        <div className="lg:col-span-2 bg-white p-4 sm:p-6 rounded-xl border border-slate-200/80 shadow-xs">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4 sm:mb-6">
             <div>
-              <h3 className="font-bold text-slate-900 text-base">
+              <h3 className="font-bold text-slate-900 text-sm sm:text-base">
                 {timeMode === 'daily' && 'ปริมาณงานตามช่วงเวลาชั่วโมง (วันนี้)'}
                 {timeMode === 'monthly' && 'สถิติปริมาณงานรายวัน (เดือนนี้)'}
                 {timeMode === 'yearly' && 'สรุปสถิติปริมาณงานรายเดือน (ปีนี้)'}
               </h3>
-              <p className="text-xs text-slate-500 mt-0.5">
+              <p className="text-[11px] sm:text-xs text-slate-500 mt-0.5">
                 เปรียบเทียบงานที่เสร็จสิ้นกับงานที่กำลังดำเนินการ/รอดำเนินการ
               </p>
             </div>
+
+            {/* Filter Period Tabs */}
+            <div className="inline-flex p-1 bg-slate-100/90 border border-slate-200/80 rounded-xl self-start sm:self-auto shrink-0">
+              <button
+                onClick={() => setTimeMode('daily')}
+                className={`px-2.5 sm:px-3 py-1 text-xs font-semibold rounded-lg transition-all text-center cursor-pointer ${
+                  timeMode === 'daily'
+                    ? 'bg-white text-blue-600 shadow-xs'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                รายวัน (Today)
+              </button>
+              <button
+                onClick={() => setTimeMode('monthly')}
+                className={`px-2.5 sm:px-3 py-1 text-xs font-semibold rounded-lg transition-all text-center cursor-pointer ${
+                  timeMode === 'monthly'
+                    ? 'bg-white text-blue-600 shadow-xs'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                รายเดือน (Month)
+              </button>
+              <button
+                onClick={() => setTimeMode('yearly')}
+                className={`px-2.5 sm:px-3 py-1 text-xs font-semibold rounded-lg transition-all text-center cursor-pointer ${
+                  timeMode === 'yearly'
+                    ? 'bg-white text-blue-600 shadow-xs'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                รายปี (Year)
+              </button>
+            </div>
           </div>
-          <div className="h-72">
+          <div className="h-56 sm:h-72">
             <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={chartData}>
+              <AreaChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                 <defs>
                   <linearGradient id="colorCompleted" x1="0" y1="0" x2="0" y2="1">
                     <stop offset="5%" stopColor="#10b981" stopOpacity={0.2} />
@@ -173,9 +171,9 @@ export const DashboardPage: React.FC = () => {
                   </linearGradient>
                 </defs>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                <XAxis dataKey="time" stroke="#94a3b8" fontSize={11} tickLine={false} />
-                <YAxis stroke="#94a3b8" fontSize={11} tickLine={false} axisLine={false} />
-                <Tooltip contentStyle={{ backgroundColor: '#fff', borderRadius: '8px', border: '1px solid #e2e8f0' }} />
+                <XAxis dataKey="time" stroke="#94a3b8" fontSize={10} tickLine={false} interval={timeMode === 'daily' ? 1 : 'preserveStartEnd'} />
+                <YAxis stroke="#94a3b8" fontSize={10} tickLine={false} axisLine={false} />
+                <Tooltip contentStyle={{ backgroundColor: '#fff', borderRadius: '8px', border: '1px solid #e2e8f0', fontSize: '12px' }} />
                 <Area type="monotone" name="งานเสร็จสิ้น" dataKey="completed" stroke="#10b981" strokeWidth={2} fillOpacity={1} fill="url(#colorCompleted)" />
                 <Area type="monotone" name="กำลังดำเนินการ/รอดำเนินการ" dataKey="inprogress" stroke="#0284c7" strokeWidth={2} fillOpacity={1} fill="url(#colorInProgress)" />
                 <Area type="monotone" name="งานที่ยกเลิก" dataKey="cancelled" stroke="#e11d48" strokeWidth={2} fillOpacity={1} fill="url(#colorCancelled)" />
@@ -185,24 +183,24 @@ export const DashboardPage: React.FC = () => {
         </div>
 
         {/* Pie Distribution Chart */}
-        <div className="bg-white p-6 rounded-xl border border-slate-200/80 shadow-xs flex flex-col justify-between">
+        <div className="bg-white p-4 sm:p-6 rounded-xl border border-slate-200/80 shadow-xs flex flex-col justify-between">
           <div>
-            <h3 className="font-bold text-slate-900 text-base">สัดส่วนสถานะงานภาพรวม</h3>
-            <p className="text-xs text-slate-500 mt-0.5">กระจายตามสถานะการขนส่ง</p>
+            <h3 className="font-bold text-slate-900 text-sm sm:text-base">สัดส่วนสถานะงานภาพรวม</h3>
+            <p className="text-[11px] sm:text-xs text-slate-500 mt-0.5">กระจายตามสถานะการขนส่ง</p>
           </div>
-          <div className="h-48 my-2">
+          <div className="h-44 sm:h-48 my-2">
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
-                <Pie data={pieData} cx="50%" cy="50%" innerRadius={50} outerRadius={70} dataKey="value">
+                <Pie data={pieData} cx="50%" cy="50%" innerRadius={45} outerRadius={65} dataKey="value">
                   {pieData.map((entry, index) => (
                     <Cell key={`cell-${index}`} fill={entry.color} />
                   ))}
                 </Pie>
-                <Tooltip />
+                <Tooltip contentStyle={{ backgroundColor: '#fff', borderRadius: '8px', border: '1px solid #e2e8f0', fontSize: '12px' }} />
               </PieChart>
             </ResponsiveContainer>
           </div>
-          <div className="space-y-2 border-t border-slate-100 pt-3">
+          <div className="space-y-1.5 sm:space-y-2 border-t border-slate-100 pt-3">
             {pieData.map((item, i) => (
               <div key={i} className="flex items-center justify-between text-xs">
                 <div className="flex items-center gap-2">

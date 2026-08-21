@@ -31,8 +31,10 @@ apiClient.interceptors.response.use(
   (error) => {
     if (error.response?.status === 401) {
       localStorage.removeItem('access_token');
+      localStorage.removeItem('user_id');
+      localStorage.removeItem('username');
       if (window.location.pathname !== '/login') {
-        window.location.href = '/login';
+        window.location.href = '/login?reason=concurrent_login';
       }
     }
     return Promise.reject(error);

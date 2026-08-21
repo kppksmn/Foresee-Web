@@ -47,35 +47,35 @@ export const ConfirmModal: React.FC<ConfirmModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-xs">
-      <div className="bg-white w-full max-w-md rounded-2xl border border-slate-200 shadow-2xl animate-in fade-in zoom-in-95 duration-200 overflow-hidden">
-        <div className="p-6">
-          <div className="flex items-start gap-4">
-            <div className="p-3 rounded-xl bg-slate-100 shrink-0">{getIcon()}</div>
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-900/50 backdrop-blur-xs">
+      <div className="bg-white w-[calc(100vw-24px)] max-w-md rounded-2xl border border-slate-200 shadow-2xl animate-in fade-in zoom-in-95 duration-200 overflow-hidden">
+        <div className="p-4 sm:p-6">
+          <div className="flex items-start gap-3 sm:gap-4">
+            <div className="p-2 sm:p-3 rounded-xl bg-slate-100 shrink-0">{getIcon()}</div>
             <div className="flex-1 min-w-0">
-              <h4 className="text-base font-bold text-slate-900">{title}</h4>
-              <p className="mt-1 text-sm text-slate-600 leading-relaxed">{message}</p>
+              <h4 className="text-sm sm:text-base font-bold text-slate-900">{title}</h4>
+              <p className="mt-1 text-xs sm:text-sm text-slate-600 leading-relaxed">{message}</p>
             </div>
             <button
               onClick={onCancel}
-              className="p-1 text-slate-400 hover:text-slate-600 rounded-lg hover:bg-slate-100 transition-colors"
+              className="p-1 text-slate-400 hover:text-slate-600 rounded-lg hover:bg-slate-100 transition-colors cursor-pointer shrink-0"
             >
               <X size={18} />
             </button>
           </div>
 
-          <div className="mt-6 flex items-center justify-end gap-3">
+          <div className="mt-5 sm:mt-6 flex items-center justify-end gap-2.5 sm:gap-3">
             <button
               type="button"
               onClick={onCancel}
-              className="px-4 py-2 border border-slate-200 rounded-xl text-sm font-medium text-slate-600 hover:bg-slate-50 transition-colors cursor-pointer"
+              className="px-4 py-2 border border-slate-200 rounded-xl text-xs sm:text-sm font-medium text-slate-600 hover:bg-slate-50 transition-colors cursor-pointer"
             >
               {cancelText}
             </button>
             <button
               type="button"
               onClick={onConfirm}
-              className={`px-5 py-2 font-medium text-sm rounded-xl transition-colors shadow-sm cursor-pointer ${getConfirmButtonStyle()}`}
+              className={`px-4 sm:px-5 py-2 font-medium text-xs sm:text-sm rounded-xl transition-colors shadow-sm cursor-pointer ${getConfirmButtonStyle()}`}
             >
               {confirmText}
             </button>
@@ -104,32 +104,32 @@ export const AlertModal: React.FC<AlertModalProps> = ({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-xs">
-      <div className="bg-white w-full max-w-md rounded-2xl border border-slate-200 shadow-2xl animate-in fade-in zoom-in-95 duration-200 overflow-hidden">
-        <div className="p-6">
-          <div className="flex items-start gap-4">
-            <div className="p-3 rounded-xl bg-slate-100 shrink-0">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-900/50 backdrop-blur-xs">
+      <div className="bg-white w-[calc(100vw-24px)] max-w-md rounded-2xl border border-slate-200 shadow-2xl animate-in fade-in zoom-in-95 duration-200 overflow-hidden">
+        <div className="p-4 sm:p-6">
+          <div className="flex items-start gap-3 sm:gap-4">
+            <div className="p-2 sm:p-3 rounded-xl bg-slate-100 shrink-0">
               {type === 'success' ? (
-                <CheckCircle2 className="w-6 h-6 text-emerald-600" />
+                <CheckCircle2 className="w-5 h-5 sm:w-6 sm:h-6 text-emerald-600" />
               ) : type === 'error' ? (
-                <AlertCircle className="w-6 h-6 text-rose-600" />
+                <AlertCircle className="w-5 h-5 sm:w-6 sm:h-6 text-rose-600" />
               ) : (
-                <Info className="w-6 h-6 text-blue-600" />
+                <Info className="w-5 h-5 sm:w-6 sm:h-6 text-blue-600" />
               )}
             </div>
             <div className="flex-1 min-w-0">
-              <h4 className="text-base font-bold text-slate-900">
+              <h4 className="text-sm sm:text-base font-bold text-slate-900">
                 {title || (type === 'success' ? 'สำเร็จ' : type === 'error' ? 'แจ้งเตือน' : 'ข้อมูล')}
               </h4>
-              <p className="mt-1 text-sm text-slate-600 leading-relaxed">{message}</p>
+              <p className="mt-1 text-xs sm:text-sm text-slate-600 leading-relaxed">{message}</p>
             </div>
           </div>
 
-          <div className="mt-6 flex items-center justify-end">
+          <div className="mt-5 sm:mt-6 flex items-center justify-end">
             <button
               type="button"
               onClick={onClose}
-              className="px-5 py-2 bg-slate-900 hover:bg-slate-800 text-white font-medium text-sm rounded-xl transition-colors shadow-sm cursor-pointer"
+              className="px-5 py-2 bg-slate-900 hover:bg-slate-800 text-white font-medium text-xs sm:text-sm rounded-xl transition-colors shadow-sm cursor-pointer"
             >
               ตกลง
             </button>

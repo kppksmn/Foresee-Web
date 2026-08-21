@@ -13,6 +13,14 @@ export const LoginPage: React.FC = () => {
   const navigate = useNavigate();
 
   React.useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const reason = params.get('reason');
+    if (reason === 'concurrent_login') {
+      setError('มีการเข้าสู่ระบบซ้อนจากอุปกรณ์อื่น ระบบได้ออกจากระบบสำหรับเซสชันเดิมนี้แล้ว');
+    } else if (reason === 'session_expired') {
+      setError('เซสชันการเข้าสู่ระบบของคุณหมดอายุแล้ว กรุณาเข้าสู่ระบบใหม่อีกครั้ง');
+    }
+
     const savedUsername = localStorage.getItem('remembered_username');
     if (savedUsername) {
       setUsername(savedUsername);
@@ -24,8 +32,9 @@ export const LoginPage: React.FC = () => {
     e.preventDefault();
     setError('');
     setLoading(true);
+    const cleanUsername = username.trim().toLowerCase();
     try {
-      const res = await apiClient.post('/api/v1/auth/login', { username, password, channel: 1 });
+      const res = await apiClient.post('/api/v1/auth/login', { username: cleanUsername, password, channel: 1 });
       if (res.data.success && res.data.data.accessToken) {
         localStorage.setItem('access_token', res.data.data.accessToken);
         if (res.data.data.userId) {
@@ -35,7 +44,7 @@ export const LoginPage: React.FC = () => {
           localStorage.setItem('username', res.data.data.username);
         }
         if (rememberMe) {
-          localStorage.setItem('remembered_username', username);
+          localStorage.setItem('remembered_username', cleanUsername);
         } else {
           localStorage.removeItem('remembered_username');
         }
@@ -95,6 +104,9 @@ export const LoginPage: React.FC = () => {
                   type="text"
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
+                  autoCapitalize="none"
+                  autoCorrect="off"
+                  spellCheck={false}
                   placeholder="เช่น admin"
                   required
                   className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 transition-all font-medium"

@@ -11,8 +11,10 @@ import {
   Calendar,
   Save,
   Truck,
-  Edit,
-  Trash2
+  Pencil,
+  Trash2,
+  RotateCcw,
+  KeyRound
 } from 'lucide-react';
 import { LicenseStatusBadge } from '../../components/common/StatusBadge';
 import { CustomScrollSelect } from '../../components/common/CustomScrollSelect';
@@ -21,9 +23,12 @@ import { useQuery } from '@tanstack/react-query';
 import apiClient from '../../api/client';
 import { AlertModal, ConfirmModal } from '../../components/common/CustomModal';
 import { formatDateThai } from '../../utils/dateUtils';
+import { TableScrollContainer } from '../../components/common/TableScrollContainer';
 
 export const UsersPage: React.FC = () => {
   const [search, setSearch] = useState('');
+  const [page, setPage] = useState<number>(1);
+  const pageSize = 10;
   const [isModalOpen, setIsModalOpen] = useState(false);
 
   // Form states
@@ -98,6 +103,19 @@ export const UsersPage: React.FC = () => {
     setIsModalOpen(true);
   };
 
+  // Helper to format phone number as xxx-xxx-xxxx
+  const formatPhoneNumber = (phone: string | null | undefined): string => {
+    if (!phone) return '-';
+    const digits = phone.replace(/\D/g, '');
+    if (digits.length === 10) {
+      return `${digits.slice(0, 3)}-${digits.slice(3, 6)}-${digits.slice(6)}`;
+    }
+    if (digits.length === 9) {
+      return `${digits.slice(0, 2)}-${digits.slice(2, 5)}-${digits.slice(5)}`;
+    }
+    return phone;
+  };
+
   // Helper to calculate auto password from birth date e.g. 9 ธันวา 2537 -> 09122537
   const getAutoPassword = () => {
     if (!birthDay || !birthMonth || !birthYearBE) return '';
@@ -151,8 +169,36 @@ export const UsersPage: React.FC = () => {
     userName: '',
   });
 
+  const [resetPasswordConfirm, setResetPasswordConfirm] = useState<{ isOpen: boolean; userId: number | null; userName: string; defaultPassword?: string }>({
+    isOpen: false,
+    userId: null,
+    userName: '',
+  });
+  const [isResetting, setIsResetting] = useState(false);
+
   const showAlert = (message: string, type: 'success' | 'error' | 'info' = 'error', title?: string) => {
     setAlertModal({ isOpen: true, message, type, title });
+  };
+
+  const handleResetPassword = async () => {
+    if (!resetPasswordConfirm.userId) return;
+    const { userId, userName, defaultPassword } = resetPasswordConfirm;
+    setResetPasswordConfirm({ isOpen: false, userId: null, userName: '' });
+    setIsResetting(true);
+
+    try {
+      const res = await apiClient.post(`/api/v1/admin/users/${userId}/reset-password`);
+      if (res.data?.success) {
+        const newPwd = res.data?.data?.defaultPassword || defaultPassword || 'วันเดือนปีเกิด';
+        showAlert(`รีเซ็ตรหัสผ่านสำหรับ "${userName}" เรียบร้อยแล้ว\nรหัสผ่านใหม่คือ: ${newPwd}`, 'success', 'รีเซ็ตรหัสผ่านสำเร็จ');
+      } else {
+        showAlert(res.data?.message || 'เกิดข้อผิดพลาดในการรีเซ็ตรหัสผ่าน');
+      }
+    } catch (err: any) {
+      showAlert(err.response?.data?.message || 'เกิดข้อผิดพลาดในการรีเซ็ตรหัสผ่าน');
+    } finally {
+      setIsResetting(false);
+    }
   };
 
   const handleCreateUser = async (e: React.FormEvent) => {
@@ -163,8 +209,8 @@ export const UsersPage: React.FC = () => {
     }
 
     const cleanPhone = phone.trim().replace(/\D/g, '');
-    if (!/^\d{10}$/.test(cleanPhone)) {
-      showAlert('กรุณากรอกเบอร์โทรศัพท์ให้ครบ 10 หลัก (เฉพาะตัวเลขเท่านั้น)');
+    if (!/^\d{9,10}$/.test(cleanPhone)) {
+      showAlert('กรุณากรอกเบอร์โทรศัพท์ให้ถูกต้อง (9 หรือ 10 หลัก เฉพาะตัวเลขเท่านั้น)');
       return;
     }
 
@@ -182,6 +228,53 @@ export const UsersPage: React.FC = () => {
     if (role === 'Driver' && (!licenseNo || !licenseExpDay || !licenseExpMonth || !licenseExpYearBE)) {
       showAlert('กรุณากรอกข้อมูลใบขับขี่และวันหมดอายุให้ครบถ้วนทุกฟิลด์ (*)');
       return;
+    }
+
+    const cleanUsername = username.trim().toLowerCase();
+    const cleanEmpId = employeeId.trim().toLowerCase();
+    const cleanEmail = email.trim().toLowerCase();
+    const cleanIdCard = idCardNo.trim();
+    const cleanLicense = licenseNo.trim();
+
+    // Client-side Duplicate Pre-Checks
+    if (!editingUserId) {
+      const dupUsername = users.find((u: any) => u.username?.toLowerCase() === cleanUsername);
+      if (dupUsername) {
+        showAlert(`ชื่อผู้ใช้งาน (Username) "${username}" มีอยู่ในระบบแล้ว`);
+        return;
+      }
+    }
+
+    const dupEmp = users.find((u: any) => u.id !== editingUserId && u.employeeId && u.employeeId.trim().toLowerCase() === cleanEmpId);
+    if (dupEmp) {
+      showAlert(`รหัสพนักงาน "${employeeId}" มีอยู่ในระบบแล้ว`);
+      return;
+    }
+
+    const dupPhone = users.find((u: any) => u.id !== editingUserId && u.phone && u.phone.replace(/\D/g, '') === cleanPhone);
+    if (dupPhone) {
+      showAlert(`เบอร์โทรศัพท์ "${phone}" มีอยู่ในระบบแล้ว`);
+      return;
+    }
+
+    const dupEmail = users.find((u: any) => u.id !== editingUserId && u.email && u.email.trim().toLowerCase() === cleanEmail);
+    if (dupEmail) {
+      showAlert(`อีเมล "${email}" มีอยู่ในระบบแล้ว`);
+      return;
+    }
+
+    const dupIdCard = users.find((u: any) => u.id !== editingUserId && u.idCardNo && u.idCardNo.replace(/\D/g, '') === cleanIdCard);
+    if (dupIdCard) {
+      showAlert(`เลขบัตรประชาชน "${idCardNo}" มีอยู่ในระบบแล้ว`);
+      return;
+    }
+
+    if (role === 'Driver' && cleanLicense && cleanLicense !== 'N/A') {
+      const dupLicense = users.find((u: any) => u.id !== editingUserId && u.licenseNo && u.licenseNo !== 'N/A' && u.licenseNo.trim().toLowerCase() === cleanLicense.toLowerCase());
+      if (dupLicense) {
+        showAlert(`เลขที่ใบขับขี่ "${licenseNo}" มีอยู่ในระบบแล้ว`);
+        return;
+      }
     }
 
     try {
@@ -205,8 +298,10 @@ export const UsersPage: React.FC = () => {
         licenseExpIso = `${yyyy}-${mm}-${dd}`;
       }
 
+      const cleanUsername = username.trim().toLowerCase();
+
       const payload: any = {
-        username,
+        username: cleanUsername,
         role,
         driverDetail: {
           employeeCode: employeeId,
@@ -288,19 +383,19 @@ export const UsersPage: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      {/* Top Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4">
         <div>
-          <h2 className="text-xl font-bold text-slate-900 tracking-tight">
+          <h2 className="text-lg sm:text-xl font-bold text-slate-900 tracking-tight">
             พนักงานและผู้ใช้งาน (Users & Drivers)
           </h2>
-          <p className="text-sm text-slate-500 mt-0.5">
+          <p className="text-xs sm:text-sm text-slate-500 mt-0.5">
             จัดการข้อมูลผู้ใช้งาน บัญชีขับรถ และการตรวจสอบใบอนุญาตขับขี่
           </p>
         </div>
         <button
           onClick={openCreateModal}
-          className="inline-flex items-center gap-2 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-medium text-sm rounded-xl transition-colors shadow-sm shadow-blue-500/20"
+          className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-medium text-sm rounded-xl transition-colors shadow-sm shadow-blue-500/20 cursor-pointer"
         >
           <UserPlus size={18} />
           <span>เพิ่มพนักงาน/ผู้ใช้งานใหม่</span>
@@ -313,154 +408,204 @@ export const UsersPage: React.FC = () => {
           <Search size={17} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
           <input
             type="text"
-            placeholder="ค้นหาชื่อ, รหัสพนักงาน, เบอร์โทร..."
+            placeholder="ค้นหาชื่อ, Username, รหัสพนักงาน, เบอร์โทร..."
             value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            onChange={(e) => {
+              setSearch(e.target.value);
+              setPage(1);
+            }}
             className="w-full pl-9 pr-4 py-2 text-sm bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 text-slate-800"
           />
         </div>
       </div>
 
       {/* Table */}
-      <div className="bg-white rounded-xl border border-slate-200/80 shadow-xs overflow-hidden">
-        <table className="w-full text-left text-sm text-slate-600">
-          <thead className="bg-slate-50 border-b border-slate-200/80 text-xs font-semibold text-slate-500 uppercase tracking-wider">
-            <tr>
-              <th className="px-6 py-3.5">ชื่อ-นามสกุล / รหัส</th>
-              <th className="px-6 py-3.5">สิทธิ์ผู้ใช้งาน</th>
-              <th className="px-6 py-3.5">รถประจำตัว</th>
-              <th className="px-6 py-3.5">การติดต่อ</th>
-              <th className="px-6 py-3.5">ใบอนุญาตขับขี่</th>
-              <th className="px-6 py-3.5">สถานะใบขับขี่</th>
-              <th className="px-6 py-3.5 text-right">จัดการ</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-slate-100">
-            {users.length === 0 ? (
-              <tr>
-                <td colSpan={7} className="px-6 py-12 text-center text-slate-400 text-sm">
-                  ยังไม่มีข้อมูลพนักงาน/ผู้ใช้งานในระบบ
-                </td>
-              </tr>
-            ) : (
-              users.map((user: any) => (
-                <tr key={user.id} className="hover:bg-slate-50/50 transition-colors">
-                  <td className="px-6 py-4">
-                    <div className="font-semibold text-slate-900">{user.name}</div>
-                    <div className="text-xs text-slate-400 font-mono mt-0.5">
-                      {user.employeeId ? `ID: ${user.employeeId}` : `Username: ${user.username}`}
-                    </div>
-                  </td>
-                  <td className="px-6 py-4">
-                    <span
-                      className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold ${
-                        user.role === 'Admin'
-                          ? 'bg-purple-50 text-purple-700 border border-purple-200/60'
-                          : 'bg-blue-50 text-blue-700 border border-blue-200/60'
-                      }`}
-                    >
-                      {user.role}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 text-xs">
-                    {user.role === 'Admin' ? (
-                      <span className="text-slate-400 font-medium">-</span>
-                    ) : user.vehiclePlate ? (
-                      <div>
-                        <div className="inline-flex items-center gap-1.5 font-mono font-bold text-slate-800 bg-slate-100 px-2.5 py-1 rounded-lg border border-slate-200">
-                          <Truck size={12} className="text-blue-600" />
-                          <span>{user.vehiclePlate}</span>
-                        </div>
-                        {user.vehicleType && (
-                          <div className="text-[11px] text-slate-500 mt-0.5 font-medium">{user.vehicleType}</div>
-                        )}
-                      </div>
-                    ) : (
-                      <span className="text-slate-400 font-medium">ยังไม่ผูกรถ</span>
-                    )}
-                  </td>
-                  <td className="px-6 py-4 text-xs">
-                    <div className="flex items-center gap-1.5 text-slate-700">
-                      <Phone size={13} className="text-slate-400" />
-                      <span>{user.phone || '-'}</span>
-                    </div>
-                    <div className="flex items-center gap-1.5 text-slate-400 mt-0.5">
-                      <Mail size={13} className="text-slate-400" />
-                      <span>{user.email || '-'}</span>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 text-xs">
-                    {user.role === 'Admin' ? (
-                      <span className="text-slate-400 font-medium">-</span>
-                    ) : (
-                      <>
-                        <div className="font-medium text-slate-900">{user.licenseNo || '-'}</div>
-                        <div className="text-slate-400">หมดอายุ: {formatDateThai(user.licenseExpiration)}</div>
-                      </>
-                    )}
-                  </td>
-                  <td className="px-6 py-4">
-                    {user.role === 'Admin' ? (
-                      <span className="text-slate-400 font-medium">-</span>
-                    ) : (
-                      (() => {
-                        if (!user.licenseExpiration) {
-                          return <LicenseStatusBadge status="Valid" />;
-                        }
-                        const expDate = new Date(user.licenseExpiration);
-                        const today = new Date();
-                        today.setHours(0, 0, 0, 0);
+      {(() => {
+        const totalCount = users.length;
+        const totalPages = Math.max(1, Math.ceil(totalCount / pageSize));
+        const currentPage = Math.min(page, totalPages);
+        const paginatedUsers = users.slice((currentPage - 1) * pageSize, currentPage * pageSize);
 
-                        // 1 month before expiration (approx 30 days)
-                        const oneMonthBefore = new Date(expDate);
-                        oneMonthBefore.setMonth(oneMonthBefore.getMonth() - 1);
+        return (
+          <div className="bg-white rounded-xl border border-slate-200/80 shadow-xs overflow-hidden">
+            <TableScrollContainer>
+              <table className="w-full min-w-[980px] text-left text-sm text-slate-600">
+                <thead className="bg-slate-50 border-b border-slate-200/80 text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                  <tr>
+                    <th className="px-6 py-3.5 whitespace-nowrap min-w-[130px]">Username</th>
+                    <th className="px-6 py-3.5 min-w-[200px]">ชื่อ-นามสกุล / รหัส</th>
+                    <th className="px-6 py-3.5 whitespace-nowrap min-w-[120px]">สิทธิ์ผู้ใช้งาน</th>
+                    <th className="px-6 py-3.5 whitespace-nowrap min-w-[160px]">รถประจำตัว</th>
+                    <th className="px-6 py-3.5 whitespace-nowrap min-w-[170px]">การติดต่อ</th>
+                    <th className="px-6 py-3.5 whitespace-nowrap min-w-[170px]">ใบอนุญาตขับขี่</th>
+                    <th className="px-6 py-3.5 whitespace-nowrap min-w-[130px]">สถานะใบขับขี่</th>
+                    <th className="px-6 py-3.5 whitespace-nowrap text-right min-w-[110px]">จัดการ</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {users.length === 0 ? (
+                    <tr>
+                      <td colSpan={8} className="px-6 py-12 text-center text-slate-400 text-sm">
+                        ยังไม่มีข้อมูลพนักงาน/ผู้ใช้งานในระบบ
+                      </td>
+                    </tr>
+                  ) : (
+                    paginatedUsers.map((user: any) => (
+                      <tr key={user.id} className="hover:bg-slate-50/50 transition-colors">
+                        <td className="px-6 py-4 align-middle">
+                          <span className="font-mono font-bold text-blue-600 bg-blue-50/80 px-2.5 py-1 rounded-lg border border-blue-200/60 text-xs inline-block">
+                            {user.username || '-'}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 align-middle">
+                          <div className="font-semibold text-slate-900">{user.name}</div>
+                          <div className="text-xs text-slate-400 font-mono mt-0.5">
+                            {user.employeeId ? `รหัส: ${user.employeeId}` : '-'}
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 align-middle">
+                          <span
+                            className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold ${
+                              user.role === 'Admin'
+                                ? 'bg-purple-50 text-purple-700 border border-purple-200/60'
+                                : 'bg-blue-50 text-blue-700 border border-blue-200/60'
+                            }`}
+                          >
+                            {user.role}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 text-xs align-middle">
+                          {user.role === 'Admin' ? (
+                            <span className="text-slate-400 font-medium">-</span>
+                          ) : user.vehiclePlate ? (
+                            <div>
+                              <div className="inline-flex items-center gap-1.5 font-mono font-bold text-slate-800 bg-slate-100 px-2.5 py-1 rounded-lg border border-slate-200">
+                                <Truck size={12} className="text-blue-600" />
+                                <span>{user.vehiclePlate}</span>
+                              </div>
+                              {user.vehicleType && (
+                                <div className="text-[11px] text-slate-500 mt-0.5 font-medium">{user.vehicleType}</div>
+                              )}
+                            </div>
+                          ) : (
+                            <span className="text-slate-400 font-medium">ยังไม่ผูกรถ</span>
+                          )}
+                        </td>
+                        <td className="px-6 py-4 text-xs align-middle">
+                          <div className="flex items-center gap-1.5 text-slate-700 font-mono">
+                            <Phone size={13} className="text-slate-400 shrink-0" />
+                            <span>{formatPhoneNumber(user.phone)}</span>
+                          </div>
+                          <div className="flex items-center gap-1.5 text-slate-400 mt-0.5">
+                            <Mail size={13} className="text-slate-400 shrink-0" />
+                            <span>{user.email || '-'}</span>
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 text-xs align-middle">
+                          {user.role === 'Admin' ? (
+                            <span className="text-slate-400 font-medium">-</span>
+                          ) : (
+                            <>
+                              <div className="font-medium text-slate-900">{user.licenseNo || '-'}</div>
+                              <div className="text-slate-400">หมดอายุ: {formatDateThai(user.licenseExpiration)}</div>
+                            </>
+                          )}
+                        </td>
+                        <td className="px-6 py-4 align-middle">
+                          {user.role === 'Admin' ? (
+                            <span className="text-slate-400 font-medium">-</span>
+                          ) : (
+                            (() => {
+                              if (!user.licenseExpiration) {
+                                return <LicenseStatusBadge status="Valid" />;
+                              }
+                              const expDate = new Date(user.licenseExpiration);
+                              const today = new Date();
+                              today.setHours(0, 0, 0, 0);
 
-                        let calculatedStatus = 'Valid';
-                        if (expDate < today) {
-                          calculatedStatus = 'Expired';
-                        } else if (today >= oneMonthBefore) {
-                          calculatedStatus = 'ExpiringSoon';
-                        }
+                              // 1 month before expiration (approx 30 days)
+                              const oneMonthBefore = new Date(expDate);
+                              oneMonthBefore.setMonth(oneMonthBefore.getMonth() - 1);
 
-                        return <LicenseStatusBadge status={calculatedStatus} />;
-                      })()
-                    )}
-                  </td>
-                  <td className="px-6 py-4 text-right">
-                    <button
-                      onClick={() => openEditModal(user)}
-                      className="px-3 py-1.5 text-xs font-semibold text-blue-600 hover:text-blue-700 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors inline-flex items-center gap-1 cursor-pointer"
-                    >
-                      <Edit size={13} />
-                      <span>แก้ไขข้อมูล</span>
-                    </button>
-                  </td>
-                </tr>
-              ))
+                              let calculatedStatus = 'Valid';
+                              if (expDate < today) {
+                                calculatedStatus = 'Expired';
+                              } else if (today >= oneMonthBefore) {
+                                calculatedStatus = 'ExpiringSoon';
+                              }
+
+                              return <LicenseStatusBadge status={calculatedStatus} />;
+                            })()
+                          )}
+                        </td>
+                        <td className="px-6 py-4 text-right align-middle">
+                          <button
+                            onClick={() => openEditModal(user)}
+                            className="px-3 py-1.5 text-xs font-semibold text-blue-600 hover:text-blue-700 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors inline-flex items-center gap-1 cursor-pointer"
+                          >
+                            <Pencil size={13} />
+                            <span>แก้ไข</span>
+                          </button>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </TableScrollContainer>
+
+            {/* Pagination Footer */}
+            {totalCount > 0 && (
+              <div className="px-4 sm:px-6 py-3.5 bg-slate-50/70 border-t border-slate-200/80 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-slate-500">
+                <div>
+                  แสดงผล <span className="font-semibold text-slate-700">{Math.min(totalCount, (currentPage - 1) * pageSize + 1)}</span> ถึง{' '}
+                  <span className="font-semibold text-slate-700">{Math.min(totalCount, currentPage * pageSize)}</span> จากทั้งหมด{' '}
+                  <span className="font-semibold text-slate-700">{totalCount}</span> รายการ
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <button
+                    onClick={() => setPage((p) => Math.max(1, p - 1))}
+                    disabled={currentPage <= 1}
+                    className="px-3 py-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors font-medium cursor-pointer shadow-2xs"
+                  >
+                    ก่อนหน้า
+                  </button>
+                  <div className="px-3 py-1.5 bg-white border border-slate-200 rounded-lg font-semibold text-slate-800 shadow-2xs">
+                    หน้า {currentPage} / {totalPages}
+                  </div>
+                  <button
+                    onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                    disabled={currentPage >= totalPages}
+                    className="px-3 py-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors font-medium cursor-pointer shadow-2xs"
+                  >
+                    ถัดไป
+                  </button>
+                </div>
+              </div>
             )}
-          </tbody>
-        </table>
-      </div>
+          </div>
+        );
+      })()}
 
       {/* Modal เพิ่ม/แก้ไข พนักงาน */}
       {isModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-xs overflow-y-auto">
-          <div className="bg-white w-full max-w-2xl rounded-2xl border border-slate-200 shadow-2xl animate-in fade-in zoom-in-95 duration-200 overflow-visible relative my-auto">
-            <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/50 rounded-t-2xl sticky top-0 bg-white z-10">
-              <h3 className="font-bold text-slate-900 text-base flex items-center gap-2">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-900/50 backdrop-blur-xs overflow-y-auto">
+          <div className="bg-white w-full max-w-2xl max-h-[90vh] flex flex-col rounded-2xl border border-slate-200 shadow-2xl animate-in fade-in zoom-in-95 duration-200 overflow-hidden relative my-auto">
+            <div className="px-4 sm:px-6 py-3.5 sm:py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/50 shrink-0">
+              <h3 className="font-bold text-slate-900 text-sm sm:text-base flex items-center gap-2">
                 <UserPlus size={18} className="text-blue-600" />
                 <span>{editingUserId ? 'แก้ไขข้อมูลพนักงาน / ผู้ใช้งาน' : 'เพิ่มพนักงาน / ผู้ใช้งานใหม่'}</span>
               </h3>
               <button
                 onClick={() => setIsModalOpen(false)}
-                className="p-1 text-slate-400 hover:text-slate-600 rounded-lg hover:bg-slate-100"
+                className="p-1 text-slate-400 hover:text-slate-600 rounded-lg hover:bg-slate-100 cursor-pointer"
               >
                 <X size={18} />
               </button>
             </div>
 
-            <form onSubmit={handleCreateUser} className="p-6 space-y-4">
-              <div className="grid grid-cols-2 gap-3">
+            <form onSubmit={handleCreateUser} className="p-4 sm:p-6 space-y-3.5 sm:space-y-4 overflow-y-auto">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs font-semibold text-slate-700 mb-1 flex items-center gap-1">
                     <User size={13} className="text-slate-400" />
@@ -470,7 +615,10 @@ export const UsersPage: React.FC = () => {
                     type="text"
                     placeholder="เช่น somchai01"
                     value={username}
-                    onChange={(e) => setUsername(e.target.value)}
+                    onChange={(e) => setUsername(e.target.value.toLowerCase())}
+                    autoCapitalize="none"
+                    autoCorrect="off"
+                    spellCheck={false}
                     required
                     disabled={!!editingUserId}
                     className={`w-full px-3.5 py-2 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 ${editingUserId ? 'bg-slate-100 text-slate-500 border-slate-200 cursor-not-allowed font-medium' : 'bg-slate-50 border-slate-200 text-slate-800'}`}
@@ -493,7 +641,7 @@ export const UsersPage: React.FC = () => {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs font-semibold text-slate-700 mb-1">
                     รหัสพนักงาน *
@@ -525,21 +673,26 @@ export const UsersPage: React.FC = () => {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs font-semibold text-slate-700 mb-1 flex items-center gap-1">
                     <Phone size={13} className="text-slate-400" />
-                    <span>เบอร์โทรศัพท์ (10 หลัก) *</span>
+                    <span>เบอร์โทรศัพท์ (9-10 หลัก) *</span>
                   </label>
                   <input
                     type="tel"
                     maxLength={10}
-                    placeholder="เช่น 0812345678"
+                    placeholder="เช่น 0812345678 หรือ 021234567"
                     value={phone}
                     onChange={(e) => setPhone(e.target.value.replace(/\D/g, '').slice(0, 10))}
                     required
-                    className="w-full px-3.5 py-2 text-sm bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 text-slate-800"
+                    className="w-full px-3.5 py-2 text-sm bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 text-slate-800 font-mono"
                   />
+                  {phone && (
+                    <p className="text-[11px] text-slate-500 mt-1 font-mono">
+                      รูปแบบ: <span className="font-semibold text-blue-600">{formatPhoneNumber(phone)}</span>
+                    </p>
+                  )}
                 </div>
                 <div>
                   <label className="block text-xs font-semibold text-slate-700 mb-1 flex items-center gap-1">
@@ -586,7 +739,7 @@ export const UsersPage: React.FC = () => {
                     className="w-full px-3.5 py-2 text-sm bg-slate-100 text-slate-500 border border-slate-200 rounded-lg font-medium cursor-not-allowed"
                   />
                 ) : (
-                    <div className="grid grid-cols-3 gap-2">
+                    <div className="grid grid-cols-3 gap-1.5 sm:gap-2">
                       {/* Select วัน */}
                       <CustomScrollSelect
                         value={birthDay}
@@ -632,11 +785,43 @@ export const UsersPage: React.FC = () => {
                       />
                     </div>
                 )}
-                {/* Automatic Password Preview Badge */}
-                {!editingUserId && (
+                {/* Reset Password Button / Preview */}
+                {editingUserId ? (
+                  <div className="mt-3 p-3 bg-amber-50/80 border border-amber-200/90 rounded-xl flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+                    <div>
+                      <div className="text-xs font-semibold text-amber-900 flex items-center gap-1.5">
+                        <KeyRound size={14} className="text-amber-600" />
+                        <span>รีเซ็ตรหัสผ่านเริ่มต้น (Reset Password)</span>
+                      </div>
+                      <div className="text-[11px] text-amber-700/90 mt-0.5">
+                        {getAutoPassword() ? (
+                          <>
+                            รหัสผ่านวันเดือนปีเกิด: <span className="font-mono font-bold text-amber-900 bg-white px-1.5 py-0.5 rounded border border-amber-200">{getAutoPassword()}</span> (ดดมมปปปป)
+                          </>
+                        ) : (
+                          'รีเซ็ตรหัสผ่านกลับเป็นวันเดือนปีเกิดเริ่มต้น'
+                        )}
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      disabled={isResetting}
+                      onClick={() => setResetPasswordConfirm({
+                        isOpen: true,
+                        userId: editingUserId,
+                        userName: name || username,
+                        defaultPassword: getAutoPassword()
+                      })}
+                      className="px-3 py-1.5 bg-amber-600 hover:bg-amber-700 disabled:opacity-50 text-white text-xs font-semibold rounded-lg shadow-xs transition-colors inline-flex items-center justify-center gap-1.5 cursor-pointer shrink-0"
+                    >
+                      <RotateCcw size={13} className={isResetting ? 'animate-spin' : ''} />
+                      <span>รีเซ็ตรหัสผ่านเป็นวันเกิด</span>
+                    </button>
+                  </div>
+                ) : (
                   getAutoPassword() ? (
                     <div className="mt-2 p-2 bg-blue-50 border border-blue-200/80 rounded-lg text-xs text-blue-800 flex items-center justify-between">
-                      <span>🔑 รหัสผ่านเริ่มต้นอัตโนมัติ ( Password ):</span>
+                      <span>🔑 รหัสผ่านเริ่มต้น (Password):</span>
                       <span className="font-mono font-bold tracking-wider text-blue-700 bg-white px-2 py-0.5 rounded border border-blue-200">
                         {getAutoPassword()}
                       </span>
@@ -650,8 +835,8 @@ export const UsersPage: React.FC = () => {
               </div>
 
               {role === 'Driver' && (
-                <div className="space-y-4 pt-2 border-t border-slate-100">
-                  <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-3.5 sm:space-y-4 pt-2 border-t border-slate-100">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div>
                       <label className="block text-xs font-semibold text-slate-700 mb-1 flex items-center gap-1">
                         <FileText size={13} className="text-slate-400" />
@@ -666,12 +851,12 @@ export const UsersPage: React.FC = () => {
                         className="w-full px-3.5 py-2 text-sm bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 text-slate-800"
                       />
                     </div>
-                    <div className="col-span-2 space-y-1">
+                    <div className="sm:col-span-2 space-y-1">
                       <label className="block text-xs font-semibold text-slate-700 mb-1 flex items-center gap-1">
                         <Calendar size={13} className="text-slate-400" />
                         <span>วันหมดอายุใบขับขี่ (พ.ศ.) *</span>
                       </label>
-                      <div className="grid grid-cols-3 gap-2">
+                      <div className="grid grid-cols-3 gap-1.5 sm:gap-2">
                         {/* Select วัน */}
                         <CustomScrollSelect
                           value={licenseExpDay}
@@ -727,6 +912,8 @@ export const UsersPage: React.FC = () => {
                     <CustomScrollSelect
                       value={selectedVehicleId}
                       onChange={(val) => setSelectedVehicleId(val)}
+                      searchable={true}
+                      searchPlaceholder="พิมพ์ค้นหาทะเบียนรถ..."
                       placeholder="-- เลือกรถประจำตัว --"
                       options={availableVehicles.map((v: any) => ({
                         label: `${v.plateNumber} (${v.vehicleType || v.model || 'ไม่ระบุประเภท'})`,
@@ -737,7 +924,7 @@ export const UsersPage: React.FC = () => {
                 </div>
               )}
 
-              <div className="flex items-center justify-between pt-4 border-t border-slate-100">
+              <div className="flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-between gap-2.5 sm:gap-3 pt-3 sm:pt-4 border-t border-slate-100">
                 <div>
                   {editingUserId &&
                     editingUserId !== Number(localStorage.getItem('user_id')) &&
@@ -745,7 +932,7 @@ export const UsersPage: React.FC = () => {
                       <button
                         type="button"
                         onClick={() => promptDeleteUser(editingUserId, name || username)}
-                        className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-rose-50 hover:bg-rose-100 text-rose-600 text-sm font-semibold rounded-xl transition-colors cursor-pointer"
+                        className="w-full sm:w-auto inline-flex items-center justify-center gap-1.5 px-3.5 py-2 bg-rose-50 hover:bg-rose-100 text-rose-600 text-sm font-semibold rounded-xl transition-colors cursor-pointer"
                       >
                         <Trash2 size={16} />
                         <span>ลบพนักงานนี้</span>
@@ -753,17 +940,17 @@ export const UsersPage: React.FC = () => {
                     )}
                 </div>
 
-                <div className="flex items-center gap-3">
+                <div className="flex flex-col-reverse sm:flex-row items-stretch sm:items-center gap-2.5 sm:gap-3">
                   <button
                     type="button"
                     onClick={() => setIsModalOpen(false)}
-                    className="px-4 py-2 border border-slate-200 rounded-xl text-sm font-medium text-slate-600 hover:bg-slate-50 transition-colors cursor-pointer"
+                    className="px-4 py-2 border border-slate-200 rounded-xl text-sm font-medium text-slate-600 hover:bg-slate-50 transition-colors cursor-pointer text-center"
                   >
                     ยกเลิก
                   </button>
                   <button
                     type="submit"
-                    className="inline-flex items-center gap-2 px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium text-sm rounded-xl transition-colors shadow-sm shadow-blue-500/20 cursor-pointer"
+                    className="inline-flex items-center justify-center gap-2 px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium text-sm rounded-xl transition-colors shadow-sm shadow-blue-500/20 cursor-pointer"
                   >
                     <Save size={16} />
                     <span>{editingUserId ? 'บันทึกการแก้ไข' : 'บันทึกพนักงานใหม่'}</span>
@@ -785,6 +972,18 @@ export const UsersPage: React.FC = () => {
         type="danger"
         onConfirm={confirmDeleteUser}
         onCancel={() => setDeleteConfirm({ isOpen: false, userId: null, userName: '' })}
+      />
+
+      {/* Confirm Reset Password Modal */}
+      <ConfirmModal
+        isOpen={resetPasswordConfirm.isOpen}
+        title="ยืนยันการรีเซ็ตรหัสผ่าน"
+        message={`คุณต้องการรีเซ็ตรหัสผ่านสำหรับ "${resetPasswordConfirm.userName}" กลับเป็นวันเดือนปีเกิด (${resetPasswordConfirm.defaultPassword || 'ดดมมปปปป'}) ใช่หรือไม่?`}
+        confirmText="ยืนยันการรีเซ็ต"
+        cancelText="ยกเลิก"
+        type="info"
+        onConfirm={handleResetPassword}
+        onCancel={() => setResetPasswordConfirm({ isOpen: false, userId: null, userName: '' })}
       />
 
       {/* Alert Modal */}

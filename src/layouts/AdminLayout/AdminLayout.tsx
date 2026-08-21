@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import {
   LayoutDashboard,
+  ClipboardList,
   Truck,
   Users,
   LogOut,
@@ -11,9 +12,11 @@ import {
   ChevronRight,
   Tag,
   List,
+  Clock,
   PanelLeftClose,
   PanelLeftOpen,
-  History
+  History,
+  ShieldCheck
 } from 'lucide-react';
 
 interface SidebarItem {
@@ -27,9 +30,9 @@ const sidebarItems: SidebarItem[] = [
   { text: 'ภาพรวมระบบ', icon: LayoutDashboard, path: '/dashboard' },
   {
     text: 'รายการงาน',
-    icon: Truck,
+    icon: ClipboardList,
     subItems: [
-      { text: 'งานปัจจุบัน', icon: List, path: '/jobs' },
+      { text: 'งานปัจจุบัน', icon: Clock, path: '/jobs' },
       { text: 'ประวัติงาน', icon: History, path: '/jobs/history' },
     ],
   },
@@ -42,7 +45,7 @@ const sidebarItems: SidebarItem[] = [
     ],
   },
   { text: 'พนักงาน & ผู้ใช้', icon: Users, path: '/users' },
-  { text: 'Audit Log (ประวัติการทำงาน)', icon: History, path: '/audit-logs' },
+  { text: 'Audit Log', icon: ShieldCheck, path: '/audit-logs' },
 ];
 
 export const AdminLayout: React.FC = () => {
@@ -67,6 +70,29 @@ export const AdminLayout: React.FC = () => {
     } else {
       setOpenSubmenus((prev) => ({ ...prev, [text]: !prev[text] }));
     }
+  };
+
+  const isPathActive = (targetPath: string, currentPathname: string, searchStr: string = '') => {
+    if (targetPath === currentPathname) return true;
+
+    // Jobs specific matching
+    if (targetPath === '/jobs') {
+      if (currentPathname === '/jobs/create') return true;
+      if (currentPathname.startsWith('/jobs/edit') && !searchStr.includes('readOnly=true')) return true;
+      return false;
+    }
+
+    if (targetPath === '/jobs/history') {
+      if (currentPathname.startsWith('/jobs/edit') && searchStr.includes('readOnly=true')) return true;
+      return false;
+    }
+
+    // General sub-route matching
+    if (targetPath !== '/' && targetPath !== '/dashboard' && targetPath !== '/jobs' && currentPathname.startsWith(targetPath + '/')) {
+      return true;
+    }
+
+    return false;
   };
 
   return (
@@ -115,7 +141,7 @@ export const AdminLayout: React.FC = () => {
             const Icon = item.icon;
 
             if (item.subItems) {
-              const isSubActive = item.subItems.some((sub) => location.pathname === sub.path);
+              const isSubActive = item.subItems.some((sub) => isPathActive(sub.path, location.pathname, location.search));
               const isOpen = openSubmenus[item.text] ?? true;
 
               return (
@@ -146,7 +172,7 @@ export const AdminLayout: React.FC = () => {
                     <div className="pl-9 space-y-1">
                       {item.subItems.map((sub) => {
                         const SubIcon = sub.icon;
-                        const subActive = location.pathname === sub.path;
+                        const subActive = isPathActive(sub.path, location.pathname, location.search);
                         return (
                           <button
                             key={sub.path}
@@ -171,7 +197,7 @@ export const AdminLayout: React.FC = () => {
               );
             }
 
-            const active = location.pathname === item.path;
+            const active = item.path ? isPathActive(item.path, location.pathname, location.search) : false;
             return (
               <button
                 key={item.text}
@@ -209,11 +235,12 @@ export const AdminLayout: React.FC = () => {
       {/* Main Content Area */}
       <div className="flex-1 flex flex-col h-full min-w-0 overflow-hidden">
         {/* Top Header */}
-        <header className="h-16 bg-white/80 backdrop-blur-md border-b border-slate-200/80 shrink-0 sticky top-0 z-30 px-4 lg:px-8 flex items-center justify-between">
-          <div className="flex items-center gap-3">
+        <header className="h-14 sm:h-16 bg-white/90 backdrop-blur-md border-b border-slate-200/80 shrink-0 sticky top-0 z-30 px-3.5 sm:px-6 lg:px-8 flex items-center justify-between">
+          <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
             <button
               onClick={() => setMobileOpen(true)}
-              className="lg:hidden p-2 text-slate-600 hover:bg-slate-100 rounded-lg cursor-pointer"
+              className="lg:hidden p-1.5 sm:p-2 text-slate-600 hover:bg-slate-100 rounded-lg cursor-pointer shrink-0"
+              aria-label="Open sidebar"
             >
               <Menu size={20} />
             </button>
@@ -224,19 +251,22 @@ export const AdminLayout: React.FC = () => {
             >
               {isCollapsed ? <PanelLeftOpen size={20} /> : <PanelLeftClose size={20} />}
             </button>
-            <h1 className="text-lg font-bold text-slate-900 hidden sm:block">
-              ผู้บริหารงานขนส่ง
-            </h1>
+            <div className="flex items-center gap-2 min-w-0">
+              <span className="lg:hidden font-bold text-base text-slate-900 truncate">Foresee Logix</span>
+              <h1 className="text-base sm:text-lg font-bold text-slate-900 hidden sm:block truncate">
+                ระบบจัดการงานขนส่ง
+              </h1>
+            </div>
           </div>
 
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2.5 sm:gap-4 shrink-0">
             {/* User Profile */}
-            <div className="flex items-center gap-3">
-              <div className="w-8 h-8 rounded-full bg-blue-600 text-white font-semibold flex items-center justify-center text-xs shrink-0">
+            <div className="flex items-center gap-2 sm:gap-3">
+              <div className="w-8 h-8 rounded-full bg-blue-600 text-white font-semibold flex items-center justify-center text-xs shrink-0 shadow-xs">
                 AD
               </div>
-              <div className="hidden sm:block text-left">
-                <div className="text-xs font-bold text-slate-900">Administrator</div>
+              <div className="hidden md:block text-left">
+                <div className="text-xs font-bold text-slate-900 leading-tight">Administrator</div>
                 <div className="text-[11px] text-slate-500">system@foresee.com</div>
               </div>
             </div>
@@ -244,7 +274,7 @@ export const AdminLayout: React.FC = () => {
         </header>
 
         {/* Content Body */}
-        <main className="flex-1 p-4 lg:p-8 overflow-y-auto">
+        <main className="flex-1 p-3.5 sm:p-5 lg:p-8 overflow-y-auto min-w-0">
           <Outlet />
         </main>
       </div>

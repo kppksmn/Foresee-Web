@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import {
   ArrowLeft,
   Save,
@@ -12,7 +12,8 @@ import {
   UserCheck,
   Truck,
   AlertTriangle,
-  Trash2
+  Trash2,
+  Pencil
 } from 'lucide-react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -20,7 +21,7 @@ import apiClient from '../../api/client';
 import { CustomScrollSelect } from '../../components/common/CustomScrollSelect';
 import { ConfirmModal } from '../../components/common/CustomModal';
 import { FormControl, Select, MenuItem } from '@mui/material';
-import { formatDateThai } from '../../utils/dateUtils';
+import { formatDateThai, formatPhoneNumber } from '../../utils/dateUtils';
 
 declare global {
   interface Window {
@@ -60,6 +61,7 @@ export const CreateJobPage: React.FC = () => {
   const [contactName, setContactName] = useState('');
   const [contactPhone, setContactPhone] = useState('');
   const [followers, setFollowers] = useState('');
+  const [companionId, setCompanionId] = useState('');
   const [description, setDescription] = useState('');
   const [pickupLat, setPickupLat] = useState('13.7563');
   const [pickupLng, setPickupLng] = useState('100.5018');
@@ -200,23 +202,166 @@ export const CreateJobPage: React.FC = () => {
     },
   });
 
-  // Filter only driver users (or users with role Driver) and map properties
-  const drivers = rawUsers
-    .filter((u: any) => u.role === 'Driver')
-    .map((u: any) => {
-      const activeCount = u.activeJobsCount || 0;
-      const jobCountText = activeCount > 0 ? ` [ค้าง ${activeCount} งาน]` : ' [ไม่มีงานค้าง]';
-      return {
-        id: u.id,
-        name: `${u.name}${u.employeeId ? ` (${u.employeeId})` : ''}${jobCountText}`,
-        defaultVehicleId: u.vehicleId ? String(u.vehicleId) : '',
-        status: u.licenseStatus || 'Valid',
-        licenseWarning: u.licenseStatus === 'Expired',
-        activeJobsCount: activeCount,
-      };
-    });
+  // Fetch active jobs to detect scheduling conflicts for drivers and companions
+  const { data: rawActiveJobs = [] } = useQuery({
+    queryKey: ['admin-jobs-active-conflict'],
+    queryFn: async () => {
+      try {
+        const res = await apiClient.get('/api/v1/admin/jobs?mode=active');
+        return res.data?.data || [];
+      } catch (err) {
+        return [];
+      }
+    },
+  });
 
-  // Fetch Vehicles from Database and filter only available (active & no active jobs)
+  // Helper to check if an employee has a conflicting active job at the selected arrival date & time
+  const getEmployeeConflictJob = (userId: number | string) => {
+    if (!scheduledDate) return null;
+    const targetTime = `${scheduledHour}:${scheduledMinute}`;
+    const uId = Number(userId);
+    if (!uId) return null;
+
+    return rawActiveJobs.find((j: any) => {
+      // If editing, ignore current job being edited
+      if (isEditMode && String(j.id) === String(jobId)) return false;
+      // Must be active job (status not Completed or Cancelled)
+      if (j.status === 'Completed' || j.status === 'Cancelled') return false;
+
+      let jDate = j.scheduledDate || j.scheduleddate;
+      let jTime = j.scheduledTime || j.scheduledtime;
+      if (!jDate && j.scheduledStartAt) {
+        const parts = String(j.scheduledStartAt).split('T');
+        jDate = parts[0];
+        jTime = parts[1]?.slice(0, 5);
+      }
+
+      if (jDate === scheduledDate && jTime === targetTime) {
+        const isDriver = Number(j.driverId || j.driverid) === uId;
+        const isCompanion = Number(j.companionId || j.companionid) === uId;
+        return isDriver || isCompanion;
+      }
+      return false;
+    });
+  };
+
+  // Helper to check if a vehicle has a conflicting active job at the selected arrival date & time
+  const getVehicleConflictJob = (vId: number | string) => {
+    if (!scheduledDate) return null;
+    const targetTime = `${scheduledHour}:${scheduledMinute}`;
+    const vehicleIdNum = Number(vId);
+    if (!vehicleIdNum) return null;
+
+    return rawActiveJobs.find((j: any) => {
+      if (isEditMode && String(j.id) === String(jobId)) return false;
+      if (j.status === 'Completed' || j.status === 'Cancelled') return false;
+
+      let jDate = j.scheduledDate || j.scheduleddate;
+      let jTime = j.scheduledTime || j.scheduledtime;
+      if (!jDate && j.scheduledStartAt) {
+        const parts = String(j.scheduledStartAt).split('T');
+        jDate = parts[0];
+        jTime = parts[1]?.slice(0, 5);
+      }
+
+      if (jDate === scheduledDate && jTime === targetTime) {
+        return Number(j.vehicleId || j.vehicleid) === vehicleIdNum;
+      }
+      return false;
+    });
+  };
+
+  // Filter only driver users (or users with role Driver) and map properties
+  const drivers = useMemo(() => {
+    return rawUsers
+      .filter((u: any) => u.role === 'Driver')
+      .map((u: any) => {
+        const activeCount = u.activeJobsCount || 0;
+        const jobCountText = activeCount > 0 ? ` [ค้าง ${activeCount} งาน]` : ' [ไม่มีงานค้าง]';
+        const baseName = `${u.name}${u.employeeId ? ` (${u.employeeId})` : ''}`;
+        return {
+          id: u.id,
+          name: `${baseName}${jobCountText}`,
+          baseName,
+          defaultVehicleId: u.vehicleId ? String(u.vehicleId) : '',
+          status: u.licenseStatus || 'Valid',
+          licenseWarning: u.licenseStatus === 'Expired',
+          activeJobsCount: activeCount,
+        };
+      });
+  }, [rawUsers]);
+
+  // Options for Driver Dropdown: available (no conflict) first, then alphabetical (ก-ฮ)
+  const driverOptions = useMemo(() => {
+    return drivers
+      .filter((d: any) => !companionId || String(d.id) !== String(companionId))
+      .map((d: any) => {
+        const conflict = getEmployeeConflictJob(d.id);
+        let label = d.name;
+        if (conflict) {
+          label = `${d.baseName} ⛔ (ติดงาน ${conflict.jobNumber || ''} เวลา ${conflict.scheduledTime || `${scheduledHour}:${scheduledMinute}`})`;
+        } else if (d.status === 'Expired') {
+          label = `${d.name} (⚠️ ใบขับขี่หมดอายุ)`;
+        }
+        return {
+          label,
+          value: String(d.id),
+          disabled: Boolean(conflict),
+          activeJobsCount: d.activeJobsCount || 0,
+          rawName: d.baseName || d.name,
+        };
+      })
+      .sort((a: any, b: any) => {
+        // 1. Available (no conflict at this scheduled time) first
+        if (!a.disabled && b.disabled) return -1;
+        if (a.disabled && !b.disabled) return 1;
+        // 2. Active jobs count: 0 (ไม่มีงานค้าง) before > 0
+        const aCount = a.activeJobsCount || 0;
+        const bCount = b.activeJobsCount || 0;
+        if (aCount === 0 && bCount > 0) return -1;
+        if (aCount > 0 && bCount === 0) return 1;
+        if (aCount !== bCount) return aCount - bCount;
+        // 3. Alphabetical order (Thai collation)
+        return a.rawName.localeCompare(b.rawName, 'th');
+      });
+  }, [drivers, companionId, scheduledDate, scheduledHour, scheduledMinute, rawActiveJobs, isEditMode, jobId]);
+
+  // Options for Companion Dropdown: available (no conflict) first, then alphabetical (ก-ฮ)
+  const companionOptions = useMemo(() => {
+    return drivers
+      .filter((d: any) => !driverId || String(d.id) !== String(driverId))
+      .map((d: any) => {
+        const conflict = getEmployeeConflictJob(d.id);
+        let label = d.name;
+        if (conflict) {
+          label = `${d.baseName} ⛔ (ติดงาน ${conflict.jobNumber || ''} เวลา ${conflict.scheduledTime || `${scheduledHour}:${scheduledMinute}`})`;
+        } else if (d.status === 'Expired') {
+          label = `${d.name} (⚠️ ใบขับขี่หมดอายุ)`;
+        }
+        return {
+          label,
+          value: String(d.id),
+          disabled: Boolean(conflict),
+          activeJobsCount: d.activeJobsCount || 0,
+          rawName: d.baseName || d.name,
+        };
+      })
+      .sort((a: any, b: any) => {
+        // 1. Available (no conflict at this scheduled time) first
+        if (!a.disabled && b.disabled) return -1;
+        if (a.disabled && !b.disabled) return 1;
+        // 2. Active jobs count: 0 (ไม่มีงานค้าง) before > 0
+        const aCount = a.activeJobsCount || 0;
+        const bCount = b.activeJobsCount || 0;
+        if (aCount === 0 && bCount > 0) return -1;
+        if (aCount > 0 && bCount === 0) return 1;
+        if (aCount !== bCount) return aCount - bCount;
+        // 3. Alphabetical order (Thai collation)
+        return a.rawName.localeCompare(b.rawName, 'th');
+      });
+  }, [drivers, driverId, scheduledDate, scheduledHour, scheduledMinute, rawActiveJobs, isEditMode, jobId]);
+
+  // Fetch Vehicles from Database
   const { data: rawVehicles = [] } = useQuery({
     queryKey: ['admin-vehicles-list'],
     queryFn: async () => {
@@ -229,12 +374,43 @@ export const CreateJobPage: React.FC = () => {
     },
   });
 
-  const vehicles = rawVehicles
-    .filter((v: any) => v.isActive && ((v.activeJobsCount || 0) === 0 || String(v.id) === vehicleId))
-    .map((v: any) => ({
-      id: v.id,
-      plate: `${v.plateNumber}${v.vehicleType ? ` (${v.vehicleType})` : ''}${v.model ? ` - ${v.model}` : ''}`,
-    }));
+  // Options for Vehicle Dropdown: available (no conflict) first, then alphabetical (ก-ฮ / เลขทะเบียน)
+  const vehicleOptions = useMemo(() => {
+    return rawVehicles
+      .filter((v: any) => v.isActive)
+      .map((v: any) => {
+        const conflict = getVehicleConflictJob(v.id);
+        const activeCount = v.activeJobsCount || 0;
+        const jobCountText = activeCount > 0 ? ` [ค้าง ${activeCount} งาน]` : ' [ไม่มีงานค้าง]';
+        const basePlate = `${v.plateNumber}${v.vehicleType ? ` (${v.vehicleType})` : ''}${v.model ? ` - ${v.model}` : ''}`;
+        
+        let label = `${basePlate}${jobCountText}`;
+        if (conflict) {
+          label = `${basePlate} ⛔ (ติดงาน ${conflict.jobNumber || ''} เวลา ${conflict.scheduledTime || `${scheduledHour}:${scheduledMinute}`})`;
+        }
+
+        return {
+          label,
+          value: String(v.id),
+          disabled: Boolean(conflict),
+          activeJobsCount: activeCount,
+          rawPlate: v.plateNumber || basePlate,
+        };
+      })
+      .sort((a: any, b: any) => {
+        // 1. Available (no conflict at this scheduled time) first
+        if (!a.disabled && b.disabled) return -1;
+        if (a.disabled && !b.disabled) return 1;
+        // 2. Active jobs count: 0 (ไม่มีงานค้าง) before > 0
+        const aCount = a.activeJobsCount || 0;
+        const bCount = b.activeJobsCount || 0;
+        if (aCount === 0 && bCount > 0) return -1;
+        if (aCount > 0 && bCount === 0) return 1;
+        if (aCount !== bCount) return aCount - bCount;
+        // 3. Alphabetical order
+        return a.rawPlate.localeCompare(b.rawPlate, 'th');
+      });
+  }, [rawVehicles, scheduledDate, scheduledHour, scheduledMinute, rawActiveJobs, isEditMode, jobId]);
 
   // Fetch existing job for Edit Mode
   const { data: existingJob } = useQuery({
@@ -269,7 +445,8 @@ export const CreateJobPage: React.FC = () => {
 
       setContactName(existingJob.contactName || '');
       setContactPhone(existingJob.contactPhone || '');
-      setFollowers(existingJob.companions || '');
+      setFollowers(existingJob.companions || existingJob.companionName || '');
+      setCompanionId(existingJob.companionId ? String(existingJob.companionId) : (existingJob.companion_id ? String(existingJob.companion_id) : ''));
       setJobStatus(existingJob.status || 'Pending');
       setCancellationReason(existingJob.cancellationReason || '');
 
@@ -288,6 +465,7 @@ export const CreateJobPage: React.FC = () => {
       setDescription('');
       setDriverId('');
       setVehicleId('');
+      setCompanionId('');
       setPickupSearch('');
       setPickupLat('');
       setPickupLng('');
@@ -315,6 +493,12 @@ export const CreateJobPage: React.FC = () => {
     setDriverId(selectedId);
     if (selectedId) setLastSelectedDriverId(selectedId);
     
+    // If same driver was selected as companion, clear companion
+    if (selectedId && selectedId === companionId) {
+      setCompanionId('');
+      setFollowers('');
+    }
+
     if (!selectedId) {
       // If driver is removed, automatically set status to Pending
       if (jobStatus !== 'Pending') {
@@ -328,13 +512,16 @@ export const CreateJobPage: React.FC = () => {
       setError('');
     }
     
-    // Auto-assign driver's default vehicle if available
+    // Auto-assign driver's default vehicle if available and not conflicting at this scheduled time
     const driver = drivers.find((d: any) => d.id === Number(selectedId));
     let newVehId = '';
     if (driver && driver.defaultVehicleId) {
       newVehId = String(driver.defaultVehicleId);
     } else if (driver && driver.vehicleId) {
       newVehId = String(driver.vehicleId);
+    }
+    if (newVehId && getVehicleConflictJob(newVehId)) {
+      newVehId = '';
     }
     setVehicleId(newVehId);
     if (newVehId) setLastSelectedVehicleId(newVehId);
@@ -356,6 +543,35 @@ export const CreateJobPage: React.FC = () => {
       }
     }
 
+    // Validate driver schedule conflict at the selected appointment date & time
+    if (driverId) {
+      const driverConflict = getEmployeeConflictJob(driverId);
+      if (driverConflict) {
+        setError(`พนักงานขับรถ (${selectedDriver?.baseName || 'ที่เลือก'}) มีงานอื่นที่ยังไม่เสร็จสิ้นตรงกับวันที่และเวลานัดหมายนี้แล้ว (เลขที่งาน: ${driverConflict.jobNumber || ''})`);
+        return;
+      }
+    }
+
+    // Validate companion schedule conflict at the selected appointment date & time
+    if (companionId) {
+      const companionConflict = getEmployeeConflictJob(companionId);
+      if (companionConflict) {
+        const compObj = drivers.find((d: any) => String(d.id) === String(companionId));
+        setError(`ผู้ติดตาม (${compObj?.baseName || 'ที่เลือก'}) มีงานอื่นที่ยังไม่เสร็จสิ้นตรงกับวันที่และเวลานัดหมายนี้แล้ว (เลขที่งาน: ${companionConflict.jobNumber || ''})`);
+        return;
+      }
+    }
+
+    // Validate vehicle schedule conflict at the selected appointment date & time
+    if (vehicleId) {
+      const vehicleConflict = getVehicleConflictJob(vehicleId);
+      if (vehicleConflict) {
+        const vehObj = rawVehicles.find((v: any) => String(v.id) === String(vehicleId));
+        setError(`รถ (${vehObj?.plateNumber || 'ที่เลือก'}) มีงานอื่นที่ยังไม่เสร็จสิ้นตรงกับวันที่และเวลานัดหมายนี้แล้ว (เลขที่งาน: ${vehicleConflict.jobNumber || ''})`);
+        return;
+      }
+    }
+
     if (jobStatus === 'Cancelled' && !cancellationReason.trim()) {
       setError('กรุณาระบุหมายเหตุ/เหตุผลในการยกเลิกงาน');
       return;
@@ -371,7 +587,10 @@ export const CreateJobPage: React.FC = () => {
     setLoading(true);
 
     try {
-      const scheduledStartAt = scheduledDate ? `${scheduledDate}T${scheduledHour}:${scheduledMinute}:00` : null;
+      const scheduledStartAt = scheduledDate ? `${scheduledDate}T${scheduledHour}:${scheduledMinute}:00+07:00` : null;
+      const companionObj = drivers.find((d: any) => String(d.id) === String(companionId));
+      const companionName = companionObj ? companionObj.name : (followers || null);
+
       const payload = {
         title,
         description,
@@ -383,7 +602,8 @@ export const CreateJobPage: React.FC = () => {
         pickupLng: pickupLng ? parseFloat(pickupLng) : null,
         contactName,
         contactPhone,
-        companions: followers,
+        companionId: companionId ? Number(companionId) : null,
+        companions: companionName,
         driverId: driverId ? Number(driverId) : null,
         vehicleId: vehicleId ? Number(vehicleId) : null,
       };
@@ -455,24 +675,25 @@ export const CreateJobPage: React.FC = () => {
       />
 
       {/* Top Bar */}
-      <div className="flex items-center gap-3">
-        <button
-          onClick={() => navigate(isReadOnly ? '/jobs/history' : '/jobs')}
-          className="inline-flex items-center gap-1.5 px-3 py-2 border border-slate-200 rounded-xl text-sm font-medium text-slate-600 hover:bg-slate-50 transition-colors cursor-pointer"
-        >
-          <ArrowLeft size={18} />
-          <span>ย้อนกลับ</span>
-        </button>
-        <div className="flex-1 flex items-center justify-between">
-          <h2 className="text-xl font-bold text-slate-900 tracking-tight">
-            {isReadOnly ? 'รายละเอียดประวัติงานขนส่ง (View Job Details)' : isEditMode ? 'แก้ไขรายละเอียดงานขนส่ง (Edit Job)' : 'สร้างงานขนส่งใหม่ (Create Job)'}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div className="flex items-center gap-3 min-w-0">
+          <button
+            onClick={() => navigate(isReadOnly ? '/jobs/history' : '/jobs')}
+            className="inline-flex items-center gap-1.5 px-3 py-2 border border-slate-200 rounded-xl text-sm font-medium text-slate-600 hover:bg-slate-50 transition-colors cursor-pointer shrink-0"
+          >
+            <ArrowLeft size={18} />
+            <span>ย้อนกลับ</span>
+          </button>
+          <h2 className="text-lg sm:text-xl font-bold text-slate-900 tracking-tight truncate flex items-center gap-2">
+            {isEditMode && !isReadOnly && <Pencil size={20} className="text-blue-600 shrink-0" />}
+            <span>{isReadOnly ? 'รายละเอียดงานขนส่ง' : isEditMode ? 'แก้ไขงานขนส่ง' : 'สร้างงานขนส่งใหม่'}</span>
           </h2>
-          {isEditMode && jobNumber && (
-            <span className="px-3 py-1 bg-blue-50 text-blue-700 font-mono text-xs font-semibold rounded-lg border border-blue-200">
-              เลขที่งาน: {jobNumber}
-            </span>
-          )}
         </div>
+        {isEditMode && jobNumber && (
+          <span className="self-start sm:self-auto px-3 py-1 bg-blue-50 text-blue-700 font-mono text-xs font-semibold rounded-lg border border-blue-200">
+            เลขที่งาน: {jobNumber}
+          </span>
+        )}
       </div>
 
       {error && (
@@ -490,13 +711,13 @@ export const CreateJobPage: React.FC = () => {
       {/* Main Form */}
       <form onSubmit={handleFormSubmit} className="space-y-6">
         {/* Section 1: ข้อมูลทั่วไปของงาน */}
-        <div className="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-xs space-y-4">
+        <div className="bg-white p-4 sm:p-6 rounded-xl sm:rounded-2xl border border-slate-200/80 shadow-xs space-y-4">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-3">
-            <h3 className="font-bold text-slate-900 text-base flex items-center gap-2">
+            <h3 className="font-bold text-slate-900 text-sm sm:text-base flex items-center gap-2">
               <FileText size={18} className="text-blue-600" />
               <span>ข้อมูลทั่วไปของงาน</span>
             </h3>
-            <div className="flex items-center gap-2 min-w-[220px]">
+            <div className="flex items-center gap-2 w-full sm:w-auto sm:min-w-[220px]">
               <label className="text-xs font-semibold text-slate-700 whitespace-nowrap flex items-center gap-1">
                 <UserCheck size={14} className="text-slate-400" />
                 <span>สถานะงาน:</span>
@@ -600,7 +821,7 @@ export const CreateJobPage: React.FC = () => {
             </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
             {isEditMode && jobNumber && (
               <div className="md:col-span-2">
                 <label className="block text-xs font-semibold text-slate-700 mb-1">
@@ -647,21 +868,24 @@ export const CreateJobPage: React.FC = () => {
             <div>
               <label className="block text-xs font-semibold text-slate-700 mb-1 flex items-center gap-1">
                 <Clock size={14} className="text-slate-400" />
-                <span>เวลาถึงที่หมาย *</span>
+                <span>เวลานัดหมาย *</span>
               </label>
-              <div className="grid grid-cols-2 gap-2">
-                <CustomScrollSelect
-                  value={scheduledHour}
-                  onChange={(val) => setScheduledHour(val)}
-                  options={hourOptions}
-                  disabled={isReadOnly}
-                />
-                <CustomScrollSelect
-                  value={scheduledMinute}
-                  onChange={(val) => setScheduledMinute(val)}
-                  options={minuteOptions}
-                  disabled={isReadOnly}
-                />
+              <div className="flex items-center gap-2">
+                <div className="grid grid-cols-2 gap-2 flex-1">
+                  <CustomScrollSelect
+                    value={scheduledHour}
+                    onChange={(val) => setScheduledHour(val)}
+                    options={hourOptions}
+                    disabled={isReadOnly}
+                  />
+                  <CustomScrollSelect
+                    value={scheduledMinute}
+                    onChange={(val) => setScheduledMinute(val)}
+                    options={minuteOptions}
+                    disabled={isReadOnly}
+                  />
+                </div>
+                <span className="text-xs font-bold text-slate-600 shrink-0">น.</span>
               </div>
             </div>
 
@@ -688,29 +912,19 @@ export const CreateJobPage: React.FC = () => {
               </label>
               <input
                 type="tel"
-                placeholder="0812345678"
-                value={contactPhone}
-                onChange={(e) => setContactPhone(e.target.value.replace(/\D/g, ''))}
+                placeholder="เช่น 0812345678 หรือ 021234567"
+                value={isReadOnly ? formatPhoneNumber(contactPhone) : contactPhone}
+                onChange={(e) => setContactPhone(e.target.value.replace(/\D/g, '').slice(0, 10))}
                 required
                 maxLength={10}
                 disabled={isReadOnly}
-                className="w-full px-3.5 py-2 text-sm bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 text-slate-800 disabled:bg-slate-100 disabled:text-slate-600 disabled:cursor-not-allowed"
+                className="w-full px-3.5 py-2 text-sm bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 text-slate-800 disabled:bg-slate-100 disabled:text-slate-600 disabled:cursor-not-allowed font-mono"
               />
-            </div>
-
-            <div className="md:col-span-2">
-              <label className="block text-xs font-semibold text-slate-700 mb-1 flex items-center gap-1">
-                <Users size={14} className="text-slate-400" />
-                <span>ผู้ติดตาม / พนักงานร่วมเดินทาง</span>
-              </label>
-              <input
-                type="text"
-                placeholder="ระบุชื่อผู้ติดตาม (ถ้ามี)"
-                value={followers}
-                onChange={(e) => setFollowers(e.target.value)}
-                disabled={isReadOnly}
-                className="w-full px-3.5 py-2 text-sm bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 text-slate-800 disabled:bg-slate-100 disabled:text-slate-600 disabled:cursor-not-allowed"
-              />
+              {!isReadOnly && contactPhone && (
+                <p className="text-[11px] text-slate-500 mt-1 font-mono">
+                  รูปแบบ: <span className="font-semibold text-blue-600">{formatPhoneNumber(contactPhone)}</span>
+                </p>
+              )}
             </div>
 
             <div className="md:col-span-2">
@@ -730,8 +944,8 @@ export const CreateJobPage: React.FC = () => {
         </div>
 
         {/* Section 2: สถานที่ปฏิบัติงาน (Google Maps Native Search Map) */}
-        <div className="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-xs space-y-4">
-          <h3 className="font-bold text-slate-900 text-base flex items-center gap-2 border-b border-slate-100 pb-3">
+        <div className="bg-white p-4 sm:p-6 rounded-xl sm:rounded-2xl border border-slate-200/80 shadow-xs space-y-4">
+          <h3 className="font-bold text-slate-900 text-sm sm:text-base flex items-center gap-2 border-b border-slate-100 pb-3">
             <MapPin size={18} className="text-blue-600" />
             <span>สถานที่ปฏิบัติงาน (Google Maps Search & Location)</span>
           </h3>
@@ -807,7 +1021,7 @@ export const CreateJobPage: React.FC = () => {
             )}
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
             <div>
               <label className="block text-xs font-semibold text-slate-700 mb-1 flex items-center gap-1">
                 <MapPin size={14} className="text-blue-600" />
@@ -818,7 +1032,7 @@ export const CreateJobPage: React.FC = () => {
                 value={pickupLat}
                 readOnly
                 required
-                placeholder="พิมพ์ชื่อสถานที่เพื่อค้นหา หรือลากปักหมุดในแผนที่ด้านล่าง..."
+                placeholder="พิมพ์ชื่อสถานที่เพื่อค้นหา..."
                 className="w-full px-3.5 py-2.5 text-xs font-mono bg-slate-100/80 border border-slate-200 rounded-lg text-slate-500 cursor-not-allowed select-none"
               />
             </div>
@@ -832,7 +1046,7 @@ export const CreateJobPage: React.FC = () => {
                 value={pickupLng}
                 readOnly
                 required
-                placeholder="พิมพ์ชื่อสถานที่เพื่อค้นหา หรือลากปักหมุดในแผนที่ด้านล่าง..."
+                placeholder="พิมพ์ชื่อสถานที่เพื่อค้นหา..."
                 className="w-full px-3.5 py-2.5 text-xs font-mono bg-slate-100/80 border border-slate-200 rounded-lg text-slate-500 cursor-not-allowed select-none"
               />
             </div>
@@ -840,28 +1054,28 @@ export const CreateJobPage: React.FC = () => {
 
           {/* Native Draggable Google Maps JS API Canvas */}
           <div className="space-y-1">
-            <div className="text-xs text-slate-500 flex items-center justify-between">
-              <span>{isReadOnly ? 'พิกัดตำแหน่งปฏิบัติงานในแผนที่' : 'สามารถคลิก หรือเลื่อนลากหมุด (Drag Marker) บน Google Maps เพื่อปรับตำแหน่งพิกัดได้ตามต้องการ'}</span>
-              <span className="font-mono text-[11px] font-semibold text-blue-600">
-                {isReadOnly ? 'Google Maps View Only' : 'Draggable Google Maps Pin Active'}
+            <div className="text-xs text-slate-500 flex flex-col sm:flex-row sm:items-center justify-between gap-1">
+              <span>{isReadOnly ? 'พิกัดตำแหน่งปฏิบัติงานในแผนที่' : 'สามารถคลิก หรือเลื่อนลากหมุดบนแผนที่เพื่อปรับพิกัดได้'}</span>
+              <span className="font-mono text-[10px] sm:text-[11px] font-semibold text-blue-600">
+                {isReadOnly ? 'Google Maps View Only' : 'Draggable Pin Active'}
               </span>
             </div>
 
             <div 
               ref={mapContainerRef}
-              className="h-96 rounded-2xl border border-slate-200 overflow-hidden relative shadow-md bg-slate-100"
+              className="h-60 sm:h-80 md:h-96 rounded-xl sm:rounded-2xl border border-slate-200 overflow-hidden relative shadow-md bg-slate-100"
             />
           </div>
         </div>
 
         {/* Section 3: มอบหมายพนักงานและรถ (Assign Driver & Vehicle Separate Dropdowns) */}
-        <div className="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-xs space-y-4">
-          <h3 className="font-bold text-slate-900 text-base flex items-center gap-2 border-b border-slate-100 pb-3">
+        <div className="bg-white p-4 sm:p-6 rounded-xl sm:rounded-2xl border border-slate-200/80 shadow-xs space-y-4">
+          <h3 className="font-bold text-slate-900 text-sm sm:text-base flex items-center gap-2 border-b border-slate-100 pb-3">
             <UserCheck size={18} className="text-blue-600" />
             <span>มอบหมายงาน (Assign Driver & Vehicle)</span>
           </h3>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3 sm:gap-4">
             {/* Dropdown 1: พนักงานขับรถ */}
             <div>
               <label className="block text-xs font-semibold text-slate-700 mb-1 flex items-center gap-1">
@@ -873,12 +1087,17 @@ export const CreateJobPage: React.FC = () => {
                 value={driverId}
                 onChange={handleDriverChange}
                 disabled={isReadOnly}
+                searchable={true}
+                searchPlaceholder="พิมพ์ค้นหาชื่อพนักงานขับรถ..."
                 placeholder="-- ไม่ระบุ (Pending) --"
-                options={drivers.map((d: any) => ({
-                  label: `${d.name} ${d.status === 'Expired' ? '(⚠️ ใบขับขี่หมดอายุ)' : ''}`,
-                  value: String(d.id),
-                }))}
+                options={driverOptions}
               />
+              {driverId && getEmployeeConflictJob(driverId) && (
+                <p className="text-xs text-rose-600 mt-1.5 font-medium flex items-center gap-1">
+                  <AlertTriangle size={13} className="text-rose-500 shrink-0" />
+                  <span>พนักงานคนนี้ติดงานค้างช่วงเวลานี้ ({getEmployeeConflictJob(driverId)?.jobNumber})</span>
+                </p>
+              )}
               {hasAttemptedSubmit && jobStatus !== 'Pending' && jobStatus !== 'Cancelled' && !driverId && (
                 <p className="text-xs text-rose-600 mt-1.5 font-medium flex items-center gap-1">
                   <AlertTriangle size={13} className="text-rose-500 shrink-0" />
@@ -887,7 +1106,35 @@ export const CreateJobPage: React.FC = () => {
               )}
             </div>
 
-            {/* Dropdown 2: ยานพาหนะ */}
+            {/* Dropdown 2: ผู้ติดตาม / พนักงานร่วมเดินทาง */}
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 mb-1 flex items-center gap-1">
+                <Users size={14} className="text-slate-400" />
+                <span>ผู้ติดตาม / พนักงานร่วมเดินทาง (Companion)</span>
+              </label>
+              <CustomScrollSelect
+                value={companionId}
+                onChange={(val) => {
+                  setCompanionId(val);
+                  const found = drivers.find((d: any) => String(d.id) === String(val));
+                  if (found) setFollowers(found.name);
+                  else setFollowers('');
+                }}
+                disabled={isReadOnly}
+                searchable={true}
+                searchPlaceholder="พิมพ์ค้นหาชื่อผู้ติดตาม..."
+                placeholder="-- ไม่มีผู้ติดตาม / ไม่ระบุ --"
+                options={companionOptions}
+              />
+              {companionId && getEmployeeConflictJob(companionId) && (
+                <p className="text-xs text-rose-600 mt-1.5 font-medium flex items-center gap-1">
+                  <AlertTriangle size={13} className="text-rose-500 shrink-0" />
+                  <span>ผู้ติดตามติดงานค้างช่วงเวลานี้ ({getEmployeeConflictJob(companionId)?.jobNumber})</span>
+                </p>
+              )}
+            </div>
+
+            {/* Dropdown 3: ยานพาหนะ */}
             <div>
               <label className="block text-xs font-semibold text-slate-700 mb-1 flex items-center gap-1">
                 <Truck size={14} className="text-slate-400" />
@@ -901,12 +1148,17 @@ export const CreateJobPage: React.FC = () => {
                   if (val) setLastSelectedVehicleId(val);
                 }}
                 disabled={isReadOnly}
+                searchable={true}
+                searchPlaceholder="พิมพ์ค้นหาทะเบียนรถ / ประเภท..."
                 placeholder="-- ไม่ระบุ --"
-                options={vehicles.map((v: any) => ({
-                  label: v.plate,
-                  value: String(v.id),
-                }))}
+                options={vehicleOptions}
               />
+              {vehicleId && getVehicleConflictJob(vehicleId) && (
+                <p className="text-xs text-rose-600 mt-1.5 font-medium flex items-center gap-1">
+                  <AlertTriangle size={13} className="text-rose-500 shrink-0" />
+                  <span>รถคันนี้ติดงานค้างช่วงเวลานี้ ({getVehicleConflictJob(vehicleId)?.jobNumber})</span>
+                </p>
+              )}
               {hasAttemptedSubmit && jobStatus !== 'Pending' && jobStatus !== 'Cancelled' && !vehicleId && (
                 <p className="text-xs text-rose-600 mt-1.5 font-medium flex items-center gap-1">
                   <AlertTriangle size={13} className="text-rose-500 shrink-0" />
@@ -917,7 +1169,7 @@ export const CreateJobPage: React.FC = () => {
 
             {/* Remark / Cancellation Reason when Cancelled */}
             {jobStatus === 'Cancelled' && (
-              <div className="md:col-span-2 space-y-2">
+              <div className="md:col-span-3 space-y-2">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1.5">
                   <label className="block text-xs font-semibold text-rose-700 flex items-center gap-1">
                     <AlertTriangle size={14} className="text-rose-600" />
@@ -958,24 +1210,24 @@ export const CreateJobPage: React.FC = () => {
         </div>
 
         {/* Submit Actions */}
-        <div className="flex items-center justify-between pt-2">
+        <div className="flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-between gap-3 pt-3 border-t border-slate-200/60">
           {!isReadOnly && isEditMode ? (
             <button
               type="button"
               onClick={() => setIsDeleteModalOpen(true)}
               disabled={loading}
-              className="inline-flex items-center gap-1.5 px-4 py-2.5 bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200 font-medium text-sm rounded-xl transition-colors cursor-pointer"
+              className="inline-flex items-center justify-center gap-1.5 px-4 py-2.5 bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200 font-medium text-sm rounded-xl transition-colors cursor-pointer"
             >
               <Trash2 size={16} />
               <span>ลบงานนี้</span>
             </button>
           ) : <div />}
 
-          <div className="flex items-center gap-3">
+          <div className="flex flex-col-reverse sm:flex-row items-stretch sm:items-center gap-2.5 sm:gap-3">
             <button
               type="button"
               onClick={() => navigate(isReadOnly ? '/jobs/history' : '/jobs')}
-              className="px-5 py-2.5 border border-slate-200 rounded-xl text-sm font-medium text-slate-600 hover:bg-slate-50 transition-colors cursor-pointer"
+              className="px-5 py-2.5 border border-slate-200 rounded-xl text-sm font-medium text-slate-600 hover:bg-slate-50 transition-colors cursor-pointer text-center"
             >
               {isReadOnly ? 'ปิดหน้าต่าง' : 'ยกเลิก'}
             </button>
@@ -983,7 +1235,7 @@ export const CreateJobPage: React.FC = () => {
               <button
                 type="submit"
                 disabled={loading}
-                className="inline-flex items-center gap-2 px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-medium text-sm rounded-xl transition-colors shadow-sm shadow-blue-500/20 cursor-pointer"
+                className="inline-flex items-center justify-center gap-2 px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-medium text-sm rounded-xl transition-colors shadow-sm shadow-blue-500/20 cursor-pointer"
               >
                 <Save size={18} />
                 <span>{loading ? 'กำลังบันทึก...' : isEditMode ? 'บันทึกการแก้ไข' : 'บันทึกสร้างงานใหม่'}</span>

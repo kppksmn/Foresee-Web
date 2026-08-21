@@ -13,10 +13,13 @@ export interface Job {
   description?: string;
   driverId?: number;
   driverName?: string;
+  companionId?: number;
+  companionName?: string;
   vehicleId?: number;
   vehiclePlate?: string;
   status: 'Pending' | 'Assigned' | 'Started' | 'Arrived' | 'Completed' | 'Cancelled';
   pickupLocation: string;
+  companions?: string;
   scheduledStartAt?: string;
   startedAt?: string;
   arrivedAt?: string;

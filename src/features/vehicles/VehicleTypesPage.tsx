@@ -6,15 +6,18 @@ import {
   Trash2,
   Save,
   Tag,
-  Edit
+  Pencil
 } from 'lucide-react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import apiClient from '../../api/client';
 import { AlertModal, ConfirmModal } from '../../components/common/CustomModal';
+import { TableScrollContainer } from '../../components/common/TableScrollContainer';
 
 export const VehicleTypesPage: React.FC = () => {
   const queryClient = useQueryClient();
   const [search, setSearch] = useState('');
+  const [page, setPage] = useState<number>(1);
+  const pageSize = 10;
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingTypeId, setEditingTypeId] = useState<number | null>(null);
   const [name, setName] = useState('');
@@ -135,21 +138,21 @@ export const VehicleTypesPage: React.FC = () => {
   };
 
   return (
-    <div className="p-6 max-w-7xl mx-auto space-y-6">
+    <div className="space-y-6">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900 tracking-tight flex items-center gap-2.5">
-            <Tag className="text-blue-600" size={28} />
+          <h1 className="text-lg sm:text-2xl font-bold text-slate-900 tracking-tight flex items-center gap-2.5">
+            <Tag className="text-blue-600 shrink-0" size={24} />
             <span>ประเภทรถ (Vehicle Types)</span>
           </h1>
-          <p className="text-sm text-slate-500 mt-1">
+          <p className="text-xs sm:text-sm text-slate-500 mt-1">
             จัดการหมวดหมู่และประเภทยานพาหนะในระบบ
           </p>
         </div>
         <button
           onClick={openCreateModal}
-          className="inline-flex items-center gap-2 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-medium text-sm rounded-xl transition-colors shadow-sm shadow-blue-500/20 cursor-pointer shrink-0"
+          className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-medium text-sm rounded-xl transition-colors shadow-sm shadow-blue-500/20 cursor-pointer shrink-0"
         >
           <Plus size={18} />
           <span>เพิ่มประเภทรถใหม่</span>
@@ -157,86 +160,133 @@ export const VehicleTypesPage: React.FC = () => {
       </div>
 
       {/* Search Bar */}
-      <div className="bg-white rounded-xl p-4 border border-slate-200/80 shadow-xs">
-        <div className="relative max-w-md">
+      <div className="bg-white rounded-xl p-3.5 sm:p-4 border border-slate-200/80 shadow-xs">
+        <div className="relative w-full">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
           <input
             type="text"
             placeholder="ค้นหาชื่อประเภทรถ..."
             value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            onChange={(e) => {
+              setSearch(e.target.value);
+              setPage(1);
+            }}
             className="w-full pl-9 pr-4 py-2 text-sm bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 text-slate-800"
           />
         </div>
       </div>
 
       {/* Table */}
-      <div className="bg-white rounded-xl border border-slate-200/80 shadow-xs overflow-hidden">
-        <table className="w-full text-left text-sm text-slate-600">
-          <thead className="bg-slate-50 border-b border-slate-200/80 text-xs font-semibold text-slate-500 uppercase tracking-wider">
-            <tr>
-              <th className="px-6 py-3.5">ลำดับ</th>
-              <th className="px-6 py-3.5">ชื่อประเภทรถ</th>
-              <th className="px-6 py-3.5">รายละเอียด / คำอธิบาย</th>
-              <th className="px-6 py-3.5 text-right">จัดการ</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-slate-100">
-            {isLoading ? (
-              <tr>
-                <td colSpan={4} className="px-6 py-12 text-center text-slate-400 text-sm">
-                  กำลังโหลดข้อมูลประเภทรถ...
-                </td>
-              </tr>
-            ) : vehicleTypes.length === 0 ? (
-              <tr>
-                <td colSpan={4} className="px-6 py-12 text-center text-slate-400 text-sm">
-                  ยังไม่มีข้อมูลประเภทรถในระบบ
-                </td>
-              </tr>
-            ) : (
-              vehicleTypes.map((vt: any, index: number) => (
-                <tr key={vt.id || index} className="hover:bg-slate-50/50 transition-colors">
-                  <td className="px-6 py-4 text-xs font-mono text-slate-400">
-                    #{index + 1}
-                  </td>
-                  <td className="px-6 py-4 font-semibold text-slate-900">
-                    <div className="inline-flex items-center gap-2">
-                      <Truck size={15} className="text-blue-600" />
-                      <span>{vt.name}</span>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 text-xs text-slate-600">
-                    {vt.description || '-'}
-                  </td>
-                  <td className="px-6 py-4 text-right space-x-2">
-                    <button
-                      onClick={() => openEditModal(vt)}
-                      className="px-2.5 py-1.5 text-xs font-semibold text-blue-600 hover:text-blue-700 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors inline-flex items-center gap-1 cursor-pointer"
-                    >
-                      <Edit size={13} />
-                      <span>แก้ไข</span>
-                    </button>
-                    <button
-                      onClick={() => promptDeleteType(vt.id, vt.name)}
-                      className="px-2.5 py-1.5 text-xs font-semibold text-rose-600 hover:text-rose-700 bg-rose-50 hover:bg-rose-100 rounded-lg transition-colors inline-flex items-center gap-1 cursor-pointer"
-                    >
-                      <Trash2 size={13} />
-                      <span>ลบ</span>
-                    </button>
-                  </td>
-                </tr>
-              ))
+      {(() => {
+        const totalCount = vehicleTypes.length;
+        const totalPages = Math.max(1, Math.ceil(totalCount / pageSize));
+        const currentPage = Math.min(page, totalPages);
+        const paginatedVehicleTypes = vehicleTypes.slice((currentPage - 1) * pageSize, currentPage * pageSize);
+
+        return (
+          <div className="bg-white rounded-xl border border-slate-200/80 shadow-xs overflow-hidden">
+            <TableScrollContainer>
+              <table className="w-full min-w-[720px] text-left text-sm text-slate-600">
+                <thead className="bg-slate-50 border-b border-slate-200/80 text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                  <tr>
+                    <th className="px-6 py-3.5 whitespace-nowrap min-w-[70px]">ลำดับ</th>
+                    <th className="px-6 py-3.5 min-w-[220px]">ชื่อประเภทรถ</th>
+                    <th className="px-6 py-3.5 min-w-[280px]">รายละเอียด / คำอธิบาย</th>
+                    <th className="px-6 py-3.5 whitespace-nowrap text-right min-w-[130px]">จัดการ</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {isLoading ? (
+                    <tr>
+                      <td colSpan={4} className="px-6 py-12 text-center text-slate-400 text-sm">
+                        กำลังโหลดข้อมูลประเภทรถ...
+                      </td>
+                    </tr>
+                  ) : vehicleTypes.length === 0 ? (
+                    <tr>
+                      <td colSpan={4} className="px-6 py-12 text-center text-slate-400 text-sm">
+                        ยังไม่มีข้อมูลประเภทรถในระบบ
+                      </td>
+                    </tr>
+                  ) : (
+                    paginatedVehicleTypes.map((vt: any, index: number) => {
+                      const itemIndex = (currentPage - 1) * pageSize + index + 1;
+                      return (
+                        <tr key={vt.id || index} className="hover:bg-slate-50/50 transition-colors">
+                          <td className="px-6 py-4 text-xs font-mono text-slate-400 align-middle">
+                            #{itemIndex}
+                          </td>
+                          <td className="px-6 py-4 font-semibold text-slate-900 align-middle">
+                            <div className="inline-flex items-center gap-2">
+                              <Truck size={15} className="text-blue-600" />
+                              <span>{vt.name}</span>
+                            </div>
+                          </td>
+                          <td className="px-6 py-4 text-xs text-slate-600 align-middle">
+                            {vt.description || '-'}
+                          </td>
+                          <td className="px-6 py-4 text-right space-x-2 whitespace-nowrap align-middle">
+                            <button
+                              onClick={() => openEditModal(vt)}
+                              className="px-3 py-1.5 text-xs font-semibold text-blue-600 hover:text-blue-700 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors inline-flex items-center gap-1 cursor-pointer"
+                            >
+                              <Pencil size={13} />
+                              <span>แก้ไข</span>
+                            </button>
+                            <button
+                              onClick={() => promptDeleteType(vt.id, vt.name)}
+                              className="px-2.5 py-1.5 text-xs font-semibold text-rose-600 hover:text-rose-700 bg-rose-50 hover:bg-rose-100 rounded-lg transition-colors inline-flex items-center gap-1 cursor-pointer"
+                            >
+                              <Trash2 size={13} />
+                              <span>ลบ</span>
+                            </button>
+                          </td>
+                        </tr>
+                      );
+                    })
+                  )}
+                </tbody>
+              </table>
+            </TableScrollContainer>
+
+            {/* Pagination Footer */}
+            {totalCount > 0 && (
+              <div className="px-4 sm:px-6 py-3.5 bg-slate-50/70 border-t border-slate-200/80 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-slate-500">
+                <div>
+                  แสดงผล <span className="font-semibold text-slate-700">{Math.min(totalCount, (currentPage - 1) * pageSize + 1)}</span> ถึง{' '}
+                  <span className="font-semibold text-slate-700">{Math.min(totalCount, currentPage * pageSize)}</span> จากทั้งหมด{' '}
+                  <span className="font-semibold text-slate-700">{totalCount}</span> รายการ
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <button
+                    onClick={() => setPage((p) => Math.max(1, p - 1))}
+                    disabled={currentPage <= 1}
+                    className="px-3 py-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors font-medium cursor-pointer shadow-2xs"
+                  >
+                    ก่อนหน้า
+                  </button>
+                  <div className="px-3 py-1.5 bg-white border border-slate-200 rounded-lg font-semibold text-slate-800 shadow-2xs">
+                    หน้า {currentPage} / {totalPages}
+                  </div>
+                  <button
+                    onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                    disabled={currentPage >= totalPages}
+                    className="px-3 py-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors font-medium cursor-pointer shadow-2xs"
+                  >
+                    ถัดไป
+                  </button>
+                </div>
+              </div>
             )}
-          </tbody>
-        </table>
-      </div>
+          </div>
+        );
+      })()}
 
       {/* Modal */}
       {isModalOpen && (
-        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-xl border border-slate-100">
-            <h2 className="text-lg font-bold text-slate-900 mb-4 flex items-center gap-2">
+        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs z-50 flex items-center justify-center p-3 sm:p-4">
+          <div className="bg-white rounded-2xl max-w-md w-full p-4 sm:p-6 shadow-xl border border-slate-100">
+            <h2 className="text-base sm:text-lg font-bold text-slate-900 mb-4 flex items-center gap-2">
               <Tag size={20} className="text-blue-600" />
               <span>{editingTypeId ? 'แก้ไขประเภทรถ' : 'เพิ่มประเภทรถใหม่'}</span>
             </h2>
@@ -269,17 +319,17 @@ export const VehicleTypesPage: React.FC = () => {
                 />
               </div>
 
-              <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-100">
+              <div className="flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-end gap-2.5 sm:gap-3 pt-3 sm:pt-4 border-t border-slate-100">
                 <button
                   type="button"
                   onClick={() => setIsModalOpen(false)}
-                  className="px-4 py-2 border border-slate-200 rounded-xl text-sm font-medium text-slate-600 hover:bg-slate-50 transition-colors cursor-pointer"
+                  className="px-4 py-2 border border-slate-200 rounded-xl text-sm font-medium text-slate-600 hover:bg-slate-50 transition-colors cursor-pointer text-center"
                 >
                   ยกเลิก
                 </button>
                 <button
                   type="submit"
-                  className="inline-flex items-center gap-2 px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium text-sm rounded-xl transition-colors shadow-sm shadow-blue-500/20 cursor-pointer"
+                  className="inline-flex items-center justify-center gap-2 px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium text-sm rounded-xl transition-colors shadow-sm shadow-blue-500/20 cursor-pointer"
                 >
                   <Save size={16} />
                   <span>บันทึกประเภทรถ</span>

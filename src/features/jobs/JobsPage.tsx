@@ -4,8 +4,9 @@ import {
   Plus,
   RefreshCw,
   MapPin,
-  Edit,
-  Eye
+  Pencil,
+  Eye,
+  Users
 } from 'lucide-react';
 import { JobStatusBadge } from '../../components/common/StatusBadge';
 import { useNavigate } from 'react-router-dom';
@@ -13,8 +14,9 @@ import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import apiClient from '../../api/client';
 import { AlertModal } from '../../components/common/CustomModal';
-import { formatDateThai } from '../../utils/dateUtils';
+import { formatDateThai, formatTimeThai } from '../../utils/dateUtils';
 import { CustomScrollSelect } from '../../components/common/CustomScrollSelect';
+import { TableScrollContainer } from '../../components/common/TableScrollContainer';
 
 interface JobsPageProps {
   mode?: 'active' | 'history';
@@ -24,6 +26,8 @@ export const JobsPage: React.FC<JobsPageProps> = ({ mode = 'active' }) => {
   const navigate = useNavigate();
   const [search, setSearch] = useState('');
   const [status, setStatus] = useState('');
+  const [page, setPage] = useState<number>(1);
+  const pageSize = 10;
 
   const [alertModal, setAlertModal] = useState<{ isOpen: boolean; message: string; type?: 'success' | 'error' | 'info' }>({
     isOpen: false,
@@ -55,20 +59,20 @@ export const JobsPage: React.FC<JobsPageProps> = ({ mode = 'active' }) => {
         onClose={() => setAlertModal({ isOpen: false, message: '' })}
       />
 
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4">
         <div>
-          <h2 className="text-xl font-bold text-slate-900 tracking-tight">
+          <h2 className="text-lg sm:text-xl font-bold text-slate-900 tracking-tight">
             {isHistoryMode ? 'ประวัติงานขนส่ง (Job History)' : 'งานปัจจุบัน (Active Jobs)'}
           </h2>
-          <p className="text-sm text-slate-500 mt-0.5">
+          <p className="text-xs sm:text-sm text-slate-500 mt-0.5">
             {isHistoryMode ? 'รายการงานขนส่งที่ปิดงานแล้ว หรือถูกยกเลิก' : 'รายการงานขนส่งที่กำลังดำเนินการ หรือรอดำเนินการ'}
           </p>
         </div>
         {!isHistoryMode && (
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 w-full sm:w-auto">
             <button
               onClick={() => navigate('/jobs/create')}
-              className="inline-flex items-center gap-2 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-medium text-sm rounded-xl transition-colors shadow-sm shadow-blue-500/20 cursor-pointer"
+              className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-medium text-sm rounded-xl transition-colors shadow-sm shadow-blue-500/20 cursor-pointer"
             >
               <Plus size={18} />
               <span>สร้างงานใหม่</span>
@@ -78,22 +82,28 @@ export const JobsPage: React.FC<JobsPageProps> = ({ mode = 'active' }) => {
       </div>
 
       {/* Filter & Search Bar */}
-      <div className="bg-white p-4 rounded-xl border border-slate-200/80 shadow-xs flex flex-col sm:flex-row gap-3 items-center justify-between">
-        <div className="flex items-center gap-3 w-full sm:w-auto flex-1">
-          <div className="relative flex-1 max-w-md">
+      <div className="bg-white p-3.5 sm:p-4 rounded-xl border border-slate-200/80 shadow-xs flex flex-col sm:flex-row gap-2.5 sm:gap-3 items-stretch sm:items-center justify-between">
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 sm:gap-3 w-full flex-1">
+          <div className="relative flex-1">
             <Search size={17} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
             <input
               type="text"
-              placeholder="ค้นหาเลขที่งาน, หัวข้อ, หรือสถานที่..."
+              placeholder="ค้นหาเลขที่งาน, หัวข้อ, สถานที่..."
               value={search}
-              onChange={(e) => setSearch(e.target.value)}
+              onChange={(e) => {
+                setSearch(e.target.value);
+                setPage(1);
+              }}
               className="w-full pl-9 pr-4 py-2 text-sm bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 text-slate-800"
             />
           </div>
-          <div className="w-48">
+          <div className="w-full sm:w-48">
             <CustomScrollSelect
               value={status}
-              onChange={(val) => setStatus(val)}
+              onChange={(val) => {
+                setStatus(val);
+                setPage(1);
+              }}
               placeholder="ทุกสถานะงาน"
               options={
                 isHistoryMode
@@ -113,117 +123,146 @@ export const JobsPage: React.FC<JobsPageProps> = ({ mode = 'active' }) => {
         </div>
         <button
           onClick={() => refetch()}
-          className="p-2 text-slate-500 hover:bg-slate-100 rounded-lg border border-slate-200"
+          className="self-end sm:self-auto p-2 text-slate-500 hover:bg-slate-100 rounded-lg border border-slate-200 cursor-pointer"
+          title="รีเฟรชข้อมูล"
         >
           <RefreshCw size={17} />
         </button>
       </div>
 
       {/* Table */}
-      <div className="bg-white rounded-xl border border-slate-200/80 shadow-xs overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-sm text-slate-600">
-            <thead className="bg-slate-50 border-b border-slate-200/80 text-xs font-semibold text-slate-500 uppercase tracking-wider">
-              <tr>
-                <th className="px-5 py-3.5">เลขที่งาน</th>
-                <th className="px-5 py-3.5">หัวข้องาน</th>
-                <th className="px-5 py-3.5">สถานที่ / จุดรับ</th>
-                <th className="px-5 py-3.5">พนักงานขับรถ</th>
-                <th className="px-5 py-3.5">รถ / ยานพาหนะ</th>
-                <th className="px-5 py-3.5">กำหนดเวลา</th>
-                <th className="px-5 py-3.5">สถานะ</th>
-                {isHistoryMode && <th className="px-5 py-3.5">หมายเหตุ (Remark)</th>}
-                <th className="px-5 py-3.5 text-right">จัดการ</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100">
-              {jobs.length === 0 ? (
-                <tr>
-                  <td colSpan={isHistoryMode ? 9 : 8} className="px-5 py-12 text-center text-slate-400 text-sm">
-                    ยังไม่มีข้อมูลรายการงานในขณะนี้
-                  </td>
-                </tr>
-              ) : (
-                jobs.map((job: any) => (
-                  <tr key={job.id} className="hover:bg-slate-50/50 transition-colors">
-                    <td className="px-5 py-4 font-semibold text-blue-600 font-mono whitespace-nowrap">
-                      {job.jobNumber || job.job_number || job.jobnumber || `JOB-${job.id}`}
-                    </td>
-                    <td className="px-5 py-4 font-medium text-slate-900">
-                      {job.title}
-                    </td>
-                    <td className="px-5 py-4">
-                      <div className="flex items-center gap-1.5 text-xs text-slate-700 font-medium">
-                        <MapPin size={13} className="text-blue-600 shrink-0" />
-                        <span className="truncate max-w-xs">{job.pickupLocation || job.pickuplocation || '-'}</span>
-                      </div>
-                    </td>
-                    <td className="px-5 py-4 whitespace-nowrap">
-                      <div className="font-medium text-slate-900">
-                        {job.driverName || job.drivername || job.driver_name || (job.driverId || job.driver_id || job.driverid ? `Driver #${job.driverId || job.driver_id || job.driverid}` : 'ยังไม่ได้มอบหมาย')}
-                      </div>
-                    </td>
-                    <td className="px-5 py-4 whitespace-nowrap">
-                      <div className="font-medium text-slate-800">
-                        {job.vehiclePlate || job.vehicleplate || job.vehicle_plate || '-'}
-                      </div>
-                      {(job.vehicleType || job.vehicletype) && (
-                        <div className="text-xs text-slate-400 font-normal">
-                          {job.vehicleType || job.vehicletype}
-                        </div>
-                      )}
-                    </td>
-                    <td className="px-5 py-4 text-xs text-slate-500 whitespace-nowrap">
-                      <div>{formatDateThai(job.scheduledDate || job.scheduleddate)}</div>
-                      <div className="font-medium text-slate-700">{job.scheduledTime || job.scheduledtime || '-'}</div>
-                    </td>
-                    <td className="px-5 py-4 whitespace-nowrap">
-                      <JobStatusBadge status={job.status} />
-                    </td>
-                    {isHistoryMode && (
-                      <td className="px-5 py-4 text-xs">
-                        {job.status === 'Cancelled' ? (
-                          <div className="space-y-0.5 max-w-xs">
-                            <span className="text-rose-600 font-medium block">{job.cancellationReason || job.cancellationreason || '-'}</span>
-                            {(job.cancelledByName || job.cancelledbyname) && (
-                              <span className="text-[11px] text-slate-500 block">
-                                ยกเลิกโดย: <span className="font-semibold text-slate-700">{job.cancelledByName || job.cancelledbyname}</span>
-                              </span>
-                            )}
-                          </div>
-                        ) : (
-                          <span className="text-slate-400">-</span>
-                        )}
-                      </td>
-                    )}
-                    <td className="px-5 py-4 text-right whitespace-nowrap">
-                      {isHistoryMode ? (
-                        <button
-                          onClick={() => navigate(`/jobs/edit/${job.id}?readOnly=true`)}
-                          className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium text-xs rounded-lg transition-colors border border-slate-200 cursor-pointer"
-                          title="ดูรายละเอียดงาน"
-                        >
-                          <Eye size={14} className="text-slate-500" />
-                          <span>ดูรายละเอียด</span>
-                        </button>
-                      ) : (
-                        <button
-                          onClick={() => navigate(`/jobs/edit/${job.id}`)}
-                          className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 hover:bg-blue-50 text-slate-600 hover:text-blue-600 font-medium text-xs rounded-lg transition-colors border border-slate-200 hover:border-blue-200 cursor-pointer"
-                          title="แก้ไขงาน"
-                        >
-                          <Edit size={14} />
-                          <span>แก้ไข</span>
-                        </button>
-                      )}
-                    </td>
+      {(() => {
+        const totalCount = jobs.length;
+        const totalPages = Math.max(1, Math.ceil(totalCount / pageSize));
+        const currentPage = Math.min(page, totalPages);
+        const paginatedJobs = jobs.slice((currentPage - 1) * pageSize, currentPage * pageSize);
+
+        return (
+          <div className="bg-white rounded-xl border border-slate-200/80 shadow-xs overflow-hidden">
+            <TableScrollContainer>
+              <table className="w-full min-w-[960px] text-left text-sm text-slate-600">
+                <thead className="bg-slate-50 border-b border-slate-200/80 text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                  <tr>
+                    <th className="px-5 py-3.5 whitespace-nowrap">เลขที่งาน</th>
+                    <th className="px-5 py-3.5 min-w-[260px] lg:min-w-[320px]">หัวข้องาน</th>
+                    <th className="px-5 py-3.5 min-w-[200px]">สถานที่ / จุดรับ</th>
+                    <th className="px-5 py-3.5 whitespace-nowrap">พนักงานขับรถ</th>
+                    <th className="px-5 py-3.5 whitespace-nowrap">รถ / ยานพาหนะ</th>
+                    <th className="px-5 py-3.5 whitespace-nowrap">เวลานัดหมาย</th>
+                    <th className="px-5 py-3.5 whitespace-nowrap">สถานะ</th>
+                    <th className="px-5 py-3.5 text-right whitespace-nowrap">จัดการ</th>
                   </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
-      </div>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {jobs.length === 0 ? (
+                    <tr>
+                      <td colSpan={8} className="px-5 py-12 text-center text-slate-400 text-sm">
+                        ยังไม่มีข้อมูลรายการงานในขณะนี้
+                      </td>
+                    </tr>
+                  ) : (
+                    paginatedJobs.map((job: any) => (
+                      <tr key={job.id} className="hover:bg-slate-50/50 transition-colors">
+                        <td className="px-5 py-4 font-semibold text-blue-600 font-mono whitespace-nowrap align-middle">
+                          {job.jobNumber || job.job_number || job.jobnumber || `JOB-${job.id}`}
+                        </td>
+                        <td className="px-5 py-4 min-w-[220px] lg:min-w-[260px] align-middle">
+                          <div className="font-medium text-slate-900 leading-snug">{job.title}</div>
+                        </td>
+                        <td className="px-5 py-4 min-w-[200px] align-middle">
+                          <div className="flex items-center gap-1.5 text-xs text-slate-700 font-medium">
+                            <MapPin size={13} className="text-blue-600 shrink-0" />
+                            <span className="truncate max-w-xs">{job.pickupLocation || job.pickuplocation || '-'}</span>
+                          </div>
+                        </td>
+                        <td className="px-5 py-4 whitespace-nowrap align-middle">
+                          <div className="font-medium text-slate-900">
+                            {job.driverName || job.drivername || job.driver_name || (job.driverId || job.driver_id || job.driverid ? `Driver #${job.driverId || job.driver_id || job.driverid}` : 'ยังไม่ได้มอบหมาย')}
+                          </div>
+                          {(job.companionName || job.companionname || job.companions) && (
+                            <div className="text-xs text-indigo-600 font-normal flex items-center gap-1 mt-0.5">
+                              <Users size={12} className="shrink-0 text-indigo-500" />
+                              <span>ผู้ร่วมเดินทาง: {job.companionName || job.companionname || job.companions}</span>
+                            </div>
+                          )}
+                        </td>
+                        <td className="px-5 py-4 whitespace-nowrap align-middle">
+                          <div className="font-medium text-slate-800">
+                            {job.vehiclePlate || job.vehicleplate || job.vehicle_plate || '-'}
+                          </div>
+                          {(job.vehicleType || job.vehicletype) && (
+                            <div className="text-xs text-slate-400 font-normal">
+                              {job.vehicleType || job.vehicletype}
+                            </div>
+                          )}
+                        </td>
+                        <td className="px-5 py-4 text-xs text-slate-500 whitespace-nowrap align-middle">
+                          <div>{formatDateThai(job.scheduledDate || job.scheduleddate)}</div>
+                          <div className="font-medium text-slate-700">{formatTimeThai(job.scheduledTime || job.scheduledtime)}</div>
+                        </td>
+                        <td className="px-5 py-4 whitespace-nowrap align-middle">
+                          <JobStatusBadge status={job.status} />
+                        </td>
+                        <td className="px-5 py-4 text-right whitespace-nowrap align-middle">
+                          {isHistoryMode ? (
+                            <button
+                              onClick={() => navigate(`/jobs/edit/${job.id}?readOnly=true`)}
+                              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium text-xs rounded-lg transition-colors border border-slate-200 cursor-pointer"
+                              title="ดูรายละเอียดงาน"
+                            >
+                              <Eye size={14} className="text-slate-500" />
+                              <span>ดูรายละเอียด</span>
+                            </button>
+                          ) : (
+                            <button
+                              onClick={() => navigate(`/jobs/edit/${job.id}`)}
+                              className="px-3 py-1.5 text-xs font-semibold text-blue-600 hover:text-blue-700 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors inline-flex items-center gap-1 cursor-pointer"
+                              title="แก้ไขงาน"
+                            >
+                              <Pencil size={13} />
+                              <span>แก้ไข</span>
+                            </button>
+                          )}
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </TableScrollContainer>
+
+            {/* Pagination Footer */}
+            {totalCount > 0 && (
+              <div className="px-4 sm:px-6 py-3.5 bg-slate-50/70 border-t border-slate-200/80 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-slate-500">
+                <div>
+                  แสดงผล <span className="font-semibold text-slate-700">{Math.min(totalCount, (currentPage - 1) * pageSize + 1)}</span> ถึง{' '}
+                  <span className="font-semibold text-slate-700">{Math.min(totalCount, currentPage * pageSize)}</span> จากทั้งหมด{' '}
+                  <span className="font-semibold text-slate-700">{totalCount}</span> รายการ
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <button
+                    onClick={() => setPage((p) => Math.max(1, p - 1))}
+                    disabled={currentPage <= 1}
+                    className="px-3 py-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors font-medium cursor-pointer shadow-2xs"
+                  >
+                    ก่อนหน้า
+                  </button>
+                  <div className="px-3 py-1.5 bg-white border border-slate-200 rounded-lg font-semibold text-slate-800 shadow-2xs">
+                    หน้า {currentPage} / {totalPages}
+                  </div>
+                  <button
+                    onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                    disabled={currentPage >= totalPages}
+                    className="px-3 py-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors font-medium cursor-pointer shadow-2xs"
+                  >
+                    ถัดไป
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        );
+      })()}
     </div>
   );
 };
