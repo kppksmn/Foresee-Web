@@ -274,6 +274,21 @@ export const CreateJobPage: React.FC = () => {
     });
   };
 
+  // Fetch existing job for Edit Mode
+  const { data: existingJob } = useQuery({
+    queryKey: ['admin-job-detail', jobId],
+    queryFn: async () => {
+      if (!jobId) return null;
+      try {
+        const res = await apiClient.get(`/api/v1/admin/jobs/${jobId}`);
+        return res.data?.data || null;
+      } catch (err) {
+        return null;
+      }
+    },
+    enabled: isEditMode,
+  });
+
   // Filter only driver users (or users with role Driver) and map properties
   const drivers = useMemo(() => {
     return rawUsers
@@ -296,7 +311,7 @@ export const CreateJobPage: React.FC = () => {
 
   // Options for Driver Dropdown: available (no conflict) first, then alphabetical (ก-ฮ)
   const driverOptions = useMemo(() => {
-    return drivers
+    const opts = drivers
       .filter((d: any) => !companionId || String(d.id) !== String(companionId))
       .map((d: any) => {
         const conflict = getEmployeeConflictJob(d.id);
@@ -316,23 +331,27 @@ export const CreateJobPage: React.FC = () => {
         };
       })
       .sort((a: any, b: any) => {
-        // 1. Available (no conflict at this scheduled time) first
         if (!a.disabled && b.disabled) return -1;
         if (a.disabled && !b.disabled) return 1;
-        // 2. Active jobs count: 0 (ไม่มีงานค้าง) before > 0
         const aCount = a.activeJobsCount || 0;
         const bCount = b.activeJobsCount || 0;
         if (aCount === 0 && bCount > 0) return -1;
         if (aCount > 0 && bCount === 0) return 1;
         if (aCount !== bCount) return aCount - bCount;
-        // 3. Alphabetical order (Thai collation)
         return a.rawName.localeCompare(b.rawName, 'th');
       });
-  }, [drivers, companionId, scheduledDate, scheduledHour, scheduledMinute, rawActiveJobs, isEditMode, jobId]);
+
+    if (driverId && !opts.some((o: any) => String(o.value) === String(driverId))) {
+      const label = existingJob?.driverName || `พนักงาน #${driverId}`;
+      opts.unshift({ label, value: String(driverId), disabled: false, rawName: label });
+    }
+
+    return opts;
+  }, [drivers, companionId, scheduledDate, scheduledHour, scheduledMinute, rawActiveJobs, isEditMode, jobId, driverId, existingJob]);
 
   // Options for Companion Dropdown: available (no conflict) first, then alphabetical (ก-ฮ)
   const companionOptions = useMemo(() => {
-    return drivers
+    const opts = drivers
       .filter((d: any) => !driverId || String(d.id) !== String(driverId))
       .map((d: any) => {
         const conflict = getEmployeeConflictJob(d.id);
@@ -352,19 +371,23 @@ export const CreateJobPage: React.FC = () => {
         };
       })
       .sort((a: any, b: any) => {
-        // 1. Available (no conflict at this scheduled time) first
         if (!a.disabled && b.disabled) return -1;
         if (a.disabled && !b.disabled) return 1;
-        // 2. Active jobs count: 0 (ไม่มีงานค้าง) before > 0
         const aCount = a.activeJobsCount || 0;
         const bCount = b.activeJobsCount || 0;
         if (aCount === 0 && bCount > 0) return -1;
         if (aCount > 0 && bCount === 0) return 1;
         if (aCount !== bCount) return aCount - bCount;
-        // 3. Alphabetical order (Thai collation)
         return a.rawName.localeCompare(b.rawName, 'th');
       });
-  }, [drivers, driverId, scheduledDate, scheduledHour, scheduledMinute, rawActiveJobs, isEditMode, jobId]);
+
+    if (companionId && !opts.some((o: any) => String(o.value) === String(companionId))) {
+      const label = existingJob?.companionName || `ผู้ร่วมเดินทาง #${companionId}`;
+      opts.unshift({ label, value: String(companionId), disabled: false, rawName: label });
+    }
+
+    return opts;
+  }, [drivers, driverId, scheduledDate, scheduledHour, scheduledMinute, rawActiveJobs, isEditMode, jobId, companionId, existingJob]);
 
   // Fetch Vehicles from Database
   const { data: rawVehicles = [] } = useQuery({
@@ -381,7 +404,7 @@ export const CreateJobPage: React.FC = () => {
 
   // Options for Vehicle Dropdown: available (no conflict) first, then alphabetical (ก-ฮ / เลขทะเบียน)
   const vehicleOptions = useMemo(() => {
-    return rawVehicles
+    const opts = rawVehicles
       .filter((v: any) => v.isActive)
       .map((v: any) => {
         const conflict = getVehicleConflictJob(v.id);
@@ -403,34 +426,23 @@ export const CreateJobPage: React.FC = () => {
         };
       })
       .sort((a: any, b: any) => {
-        // 1. Available (no conflict at this scheduled time) first
         if (!a.disabled && b.disabled) return -1;
         if (a.disabled && !b.disabled) return 1;
-        // 2. Active jobs count: 0 (ไม่มีงานค้าง) before > 0
         const aCount = a.activeJobsCount || 0;
         const bCount = b.activeJobsCount || 0;
         if (aCount === 0 && bCount > 0) return -1;
         if (aCount > 0 && bCount === 0) return 1;
         if (aCount !== bCount) return aCount - bCount;
-        // 3. Alphabetical order
         return a.rawPlate.localeCompare(b.rawPlate, 'th');
       });
-  }, [rawVehicles, scheduledDate, scheduledHour, scheduledMinute, rawActiveJobs, isEditMode, jobId]);
 
-  // Fetch existing job for Edit Mode
-  const { data: existingJob } = useQuery({
-    queryKey: ['admin-job-detail', jobId],
-    queryFn: async () => {
-      if (!jobId) return null;
-      try {
-        const res = await apiClient.get(`/api/v1/admin/jobs/${jobId}`);
-        return res.data?.data || null;
-      } catch (err) {
-        return null;
-      }
-    },
-    enabled: isEditMode,
-  });
+    if (vehicleId && !opts.some((o: any) => String(o.value) === String(vehicleId))) {
+      const label = existingJob?.vehiclePlate ? `${existingJob.vehiclePlate}${existingJob.vehicleType ? ` (${existingJob.vehicleType})` : ''}` : `ยานพาหนะ #${vehicleId}`;
+      opts.unshift({ label, value: String(vehicleId), disabled: false, rawPlate: label });
+    }
+
+    return opts;
+  }, [rawVehicles, scheduledDate, scheduledHour, scheduledMinute, rawActiveJobs, isEditMode, jobId, vehicleId, existingJob]);
 
   // Populate form state when editing existing job
   useEffect(() => {
