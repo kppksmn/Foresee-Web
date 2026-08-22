@@ -227,7 +227,10 @@ export const AdminLayout: React.FC = () => {
       setIsCollapsed(false);
       setOpenSubmenus((prev) => ({ ...prev, [text]: true }));
     } else {
-      setOpenSubmenus((prev) => ({ ...prev, [text]: !prev[text] }));
+      setOpenSubmenus((prev) => {
+        const isCurrentlyOpen = prev[text] !== false;
+        return { ...prev, [text]: !isCurrentlyOpen };
+      });
     }
   };
 
@@ -327,7 +330,7 @@ export const AdminLayout: React.FC = () => {
 
               if (item.subItems) {
                 const isSubActive = item.subItems.some((sub) => isPathActive(sub.path, location.pathname, location.search));
-                const isOpen = openSubmenus[item.text] ?? true;
+                const isOpen = openSubmenus[item.text] !== false;
 
                 return (
                   <div key={item.text} className="space-y-1">
