@@ -6,6 +6,7 @@ import type { UserNavMenu } from '../users/model/types';
 import {
   Activity,
   ArrowRight,
+  Briefcase,
   CheckCircle2,
   ClipboardList,
   Compass,
@@ -43,6 +44,14 @@ export const HomePage: React.FC = () => {
       path: '/dashboard',
       color: 'from-blue-600 to-indigo-600',
       badge: 'Real-time Stats',
+    },
+    {
+      title: 'งานของฉัน (My Assigned Jobs)',
+      description: 'ตรวจสอบรายการงานขนส่งที่คุณได้รับมอบหมายเป็นพนักงานขับรถหรือผู้ร่วมเดินทาง พร้อมระบบกรองเลือกตามวันที่นัดหมาย',
+      icon: Briefcase,
+      path: '/my-jobs',
+      color: 'from-cyan-600 to-blue-600',
+      badge: 'My Assignments',
     },
     {
       title: 'จัดการงานขนส่ง (Job Management)',

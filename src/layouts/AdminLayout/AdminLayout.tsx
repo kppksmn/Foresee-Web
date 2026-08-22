@@ -48,6 +48,7 @@ const getMenuIcon = (nameTh: string, endpoint?: string | null, hasChildren = fal
 
   if (clean.includes('หน้าหลัก') || clean.includes('home') || ep === '/home') return Home;
   if (clean.includes('ภาพรวม') || clean.includes('dashboard') || ep.includes('dashboard')) return LayoutDashboard;
+  if (clean.includes('งานของฉัน') || ep === '/my-jobs') return Clock;
   if (clean.includes('ประวัติ') || clean.includes('history') || ep.includes('history')) return History;
   if (clean.includes('งาน') || clean.includes('job') || ep.includes('jobs')) return ClipboardList;
   if (clean.includes('ประเภทรถ') || ep.includes('vehicle-types')) return Tag;
@@ -70,6 +71,7 @@ const defaultSidebarItems: SidebarItem[] = [
     text: 'รายการงาน',
     icon: Folder,
     subItems: [
+      { text: 'งานของฉัน', icon: Clock, path: '/my-jobs' },
       { text: 'จัดการงาน', icon: Clock, path: '/jobs' },
       { text: 'ประวัติงาน', icon: History, path: '/jobs/history' },
     ],

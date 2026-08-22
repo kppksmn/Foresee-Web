@@ -6,6 +6,7 @@ import { NoAccessPage } from '../../features/auth/NoAccessPage';
 import { HomePage } from '../../features/home/HomePage';
 import { DashboardPage } from '../../features/dashboard/DashboardPage';
 import { JobsPage } from '../../features/jobs/JobsPage';
+import { MyJobsPage } from '../../features/jobs/MyJobsPage';
 import { CreateJobPage } from '../../features/jobs/CreateJobPage';
 import { UsersPage } from '../../features/users/UsersPage';
 import { VehiclesPage } from '../../features/vehicles/VehiclesPage';
@@ -45,6 +46,7 @@ export const AppRouter: React.FC = () => {
           <Route path="dashboard" element={<DashboardPage />} />
           <Route path="jobs" element={<JobsPage mode="active" />} />
           <Route path="jobs/history" element={<JobsPage mode="history" />} />
+          <Route path="my-jobs" element={<MyJobsPage />} />
           <Route path="jobs/create" element={<CreateJobPage />} />
           <Route path="jobs/edit/:id" element={<CreateJobPage />} />
           <Route path="users" element={<UsersPage />} />
