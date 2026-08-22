@@ -300,16 +300,17 @@ export const CreateJobPage: React.FC = () => {
       .filter((d: any) => !companionId || String(d.id) !== String(companionId))
       .map((d: any) => {
         const conflict = getEmployeeConflictJob(d.id);
+        const isExpired = d.status === 'Expired';
         let label = d.name;
         if (conflict) {
           label = `${d.baseName} ⛔ (ติดงาน ${conflict.jobNumber || ''} เวลา ${conflict.scheduledTime || `${scheduledHour}:${scheduledMinute}`})`;
-        } else if (d.status === 'Expired') {
-          label = `${d.name} (⚠️ ใบขับขี่หมดอายุ)`;
+        } else if (isExpired) {
+          label = `${d.baseName} ⛔ (ใบขับขี่หมดอายุ - ไม่สามารถเลือกได้)`;
         }
         return {
           label,
           value: String(d.id),
-          disabled: Boolean(conflict),
+          disabled: Boolean(conflict) || isExpired,
           activeJobsCount: d.activeJobsCount || 0,
           rawName: d.baseName || d.name,
         };
@@ -335,16 +336,17 @@ export const CreateJobPage: React.FC = () => {
       .filter((d: any) => !driverId || String(d.id) !== String(driverId))
       .map((d: any) => {
         const conflict = getEmployeeConflictJob(d.id);
+        const isExpired = d.status === 'Expired';
         let label = d.name;
         if (conflict) {
           label = `${d.baseName} ⛔ (ติดงาน ${conflict.jobNumber || ''} เวลา ${conflict.scheduledTime || `${scheduledHour}:${scheduledMinute}`})`;
-        } else if (d.status === 'Expired') {
-          label = `${d.name} (⚠️ ใบขับขี่หมดอายุ)`;
+        } else if (isExpired) {
+          label = `${d.baseName} ⛔ (ใบขับขี่หมดอายุ - ไม่สามารถเลือกได้)`;
         }
         return {
           label,
           value: String(d.id),
-          disabled: Boolean(conflict),
+          disabled: Boolean(conflict) || isExpired,
           activeJobsCount: d.activeJobsCount || 0,
           rawName: d.baseName || d.name,
         };
@@ -542,6 +544,21 @@ export const CreateJobPage: React.FC = () => {
     if (jobStatus !== 'Pending' && jobStatus !== 'Cancelled') {
       if (!driverId || !vehicleId) {
         // Show inline error below fields without global banner alert
+        return;
+      }
+    }
+
+    // Validate driver license expiration
+    if (driverId && selectedDriver?.status === 'Expired') {
+      setError(`ไม่สามารถมอบหมายงานให้ได้ เนื่องจากใบอนุญาตขับขี่ของพนักงานขับรถ (${selectedDriver?.baseName || 'ที่เลือก'}) หมดอายุแล้ว`);
+      return;
+    }
+
+    // Validate companion license expiration
+    if (companionId) {
+      const compObj = drivers.find((d: any) => String(d.id) === String(companionId));
+      if (compObj?.status === 'Expired') {
+        setError(`ไม่สามารถมอบหมายงานให้ได้ เนื่องจากใบอนุญาตขับขี่ของผู้ติดตาม (${compObj?.baseName || 'ที่เลือก'}) หมดอายุแล้ว`);
         return;
       }
     }
