@@ -2,6 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import {
   Home,
+  Folder,
   LayoutDashboard,
   ClipboardList,
   Truck,
@@ -35,9 +36,15 @@ interface SidebarItem {
   subItems?: { text: string; icon: any; path: string; role?: string }[];
 }
 
-const getMenuIcon = (nameTh: string, endpoint?: string | null) => {
+const getMenuIcon = (nameTh: string, endpoint?: string | null, hasChildren = false) => {
+  const ep = (endpoint || '').trim().toLowerCase();
+
+  // If menu has sub-children or has no endpoint, it is a Folder menu -> use Folder icon
+  if (!ep || hasChildren) {
+    return Folder;
+  }
+
   const clean = (nameTh || '').toLowerCase();
-  const ep = (endpoint || '').toLowerCase();
 
   if (clean.includes('หน้าหลัก') || clean.includes('home') || ep === '/home') return Home;
   if (clean.includes('ภาพรวม') || clean.includes('dashboard') || ep.includes('dashboard')) return LayoutDashboard;
@@ -53,7 +60,7 @@ const getMenuIcon = (nameTh: string, endpoint?: string | null) => {
   if (clean.includes('รายงาน') || ep.includes('reports')) return FileText;
   if (clean.includes('ตั้งค่า') || ep.includes('settings')) return Globe;
 
-  return ep ? FileText : FolderTree;
+  return FileText;
 };
 
 const defaultSidebarItems: SidebarItem[] = [
@@ -61,7 +68,7 @@ const defaultSidebarItems: SidebarItem[] = [
   { text: 'ภาพรวมระบบ', icon: LayoutDashboard, path: '/dashboard' },
   {
     text: 'รายการงาน',
-    icon: ClipboardList,
+    icon: Folder,
     subItems: [
       { text: 'จัดการงาน', icon: Clock, path: '/jobs' },
       { text: 'ประวัติงาน', icon: History, path: '/jobs/history' },
@@ -69,7 +76,7 @@ const defaultSidebarItems: SidebarItem[] = [
   },
   {
     text: 'จัดการยานพาหนะ',
-    icon: Truck,
+    icon: Folder,
     subItems: [
       { text: 'ข้อมูลยานพาหนะ', icon: List, path: '/vehicles' },
       { text: 'ประเภทรถ', icon: Tag, path: '/vehicle-types' },
@@ -79,7 +86,7 @@ const defaultSidebarItems: SidebarItem[] = [
   { text: 'Audit Log', icon: ShieldCheck, path: '/audit-logs' },
   {
     text: 'จัดการเมนู',
-    icon: FolderTree,
+    icon: Folder,
     role: 'Admin',
     subItems: [
       { text: 'โครงสร้างเมนู', icon: FolderTree, path: '/menu-managements', role: 'Admin' },
@@ -123,15 +130,15 @@ export const AdminLayout: React.FC = () => {
     }
 
     const items: SidebarItem[] = userMenus.map((menu) => {
-      const icon = getMenuIcon(menu.nameTh, menu.endpoint);
-      const subItems =
-        menu.children && menu.children.length > 0
-          ? menu.children.map((child: UserNavMenu) => ({
-              text: child.nameTh,
-              icon: getMenuIcon(child.nameTh, child.endpoint),
-              path: child.endpoint || '',
-            }))
-          : undefined;
+      const hasChildren = Boolean(menu.children && menu.children.length > 0);
+      const icon = getMenuIcon(menu.nameTh, menu.endpoint, hasChildren);
+      const subItems = hasChildren
+        ? menu.children.map((child: UserNavMenu) => ({
+            text: child.nameTh,
+            icon: getMenuIcon(child.nameTh, child.endpoint, Boolean(child.children && child.children.length > 0)),
+            path: child.endpoint || '',
+          }))
+        : undefined;
 
       return {
         text: menu.nameTh,
