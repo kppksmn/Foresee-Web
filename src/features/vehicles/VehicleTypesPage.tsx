@@ -12,8 +12,10 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import apiClient from '../../api/client';
 import { AlertModal, ConfirmModal } from '../../components/common/CustomModal';
 import { TableScrollContainer } from '../../components/common/TableScrollContainer';
+import { useMenuPermission } from '../../hooks/useMenuPermission';
 
 export const VehicleTypesPage: React.FC = () => {
+  const permissions = useMenuPermission('/vehicle-types');
   const queryClient = useQueryClient();
   const [search, setSearch] = useState('');
   const [page, setPage] = useState<number>(1);
@@ -150,13 +152,15 @@ export const VehicleTypesPage: React.FC = () => {
             จัดการหมวดหมู่และประเภทยานพาหนะในระบบ
           </p>
         </div>
-        <button
-          onClick={openCreateModal}
-          className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-medium text-sm rounded-xl transition-colors shadow-sm shadow-blue-500/20 cursor-pointer shrink-0"
-        >
-          <Plus size={18} />
-          <span>เพิ่มประเภทรถใหม่</span>
-        </button>
+        {permissions.canCreate && (
+          <button
+            onClick={openCreateModal}
+            className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-medium text-sm rounded-xl transition-colors shadow-sm shadow-blue-500/20 cursor-pointer shrink-0"
+          >
+            <Plus size={18} />
+            <span>เพิ่มประเภทรถใหม่</span>
+          </button>
+        )}
       </div>
 
       {/* Search Bar */}
@@ -226,20 +230,27 @@ export const VehicleTypesPage: React.FC = () => {
                             {vt.description || '-'}
                           </td>
                           <td className="px-6 py-4 text-right space-x-2 whitespace-nowrap align-middle">
-                            <button
-                              onClick={() => openEditModal(vt)}
-                              className="px-3 py-1.5 text-xs font-semibold text-blue-600 hover:text-blue-700 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors inline-flex items-center gap-1 cursor-pointer"
-                            >
-                              <Pencil size={13} />
-                              <span>แก้ไข</span>
-                            </button>
-                            <button
-                              onClick={() => promptDeleteType(vt.id, vt.name)}
-                              className="px-2.5 py-1.5 text-xs font-semibold text-rose-600 hover:text-rose-700 bg-rose-50 hover:bg-rose-100 rounded-lg transition-colors inline-flex items-center gap-1 cursor-pointer"
-                            >
-                              <Trash2 size={13} />
-                              <span>ลบ</span>
-                            </button>
+                            {permissions.canUpdate && (
+                              <button
+                                onClick={() => openEditModal(vt)}
+                                className="px-3 py-1.5 text-xs font-semibold text-blue-600 hover:text-blue-700 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors inline-flex items-center gap-1 cursor-pointer"
+                              >
+                                <Pencil size={13} />
+                                <span>แก้ไข</span>
+                              </button>
+                            )}
+                            {permissions.canDelete && (
+                              <button
+                                onClick={() => promptDeleteType(vt.id, vt.name)}
+                                className="px-2.5 py-1.5 text-xs font-semibold text-rose-600 hover:text-rose-700 bg-rose-50 hover:bg-rose-100 rounded-lg transition-colors inline-flex items-center gap-1 cursor-pointer"
+                              >
+                                <Trash2 size={13} />
+                                <span>ลบ</span>
+                              </button>
+                            )}
+                            {!permissions.canUpdate && !permissions.canDelete && (
+                              <span className="text-slate-400 text-xs font-medium">-</span>
+                            )}
                           </td>
                         </tr>
                       );
