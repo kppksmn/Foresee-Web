@@ -3,7 +3,6 @@ import {
   ClipboardList,
   FolderTree,
   GitBranchPlus,
-  Globe,
   Link2,
   Save,
   Shield,
@@ -15,9 +14,6 @@ import { SearchableSelect, type SearchableSelectOption } from './SearchableSelec
 import { MenuManagementPermissionToggle } from './MenuManagementPermissionToggle';
 import {
   audienceOptions,
-  authenticationModeOptions,
-  menuTypeOptions,
-  openModeOptions,
   permissionOptions,
   type MenuManagementDraft,
   type MenuManagementDraftFlagKey,
@@ -75,27 +71,6 @@ export const MenuManagementDetailPanel: React.FC<MenuManagementDetailPanelProps>
       keywords: [option.label],
     }));
 
-  const menuTypeSelectOptions: SearchableSelectOption<MenuManagementDraft['menuType']>[] =
-    menuTypeOptions.map((option) => ({
-      value: option.value,
-      label: option.label,
-      keywords: [option.description],
-    }));
-
-  const openModeSelectOptions: SearchableSelectOption<MenuManagementDraft['openMode']>[] =
-    openModeOptions.map((option) => ({
-      value: option.value,
-      label: option.label,
-      keywords: [option.description],
-    }));
-
-  const authenticationModeSelectOptions: SearchableSelectOption<MenuManagementDraft['authenticationMode']>[] =
-    authenticationModeOptions.map((option) => ({
-      value: option.value,
-      label: option.label,
-      keywords: [option.description],
-    }));
-
   if (mode === 'idle' || !draft) {
     return (
       <section className="flex h-full min-h-[20rem] items-center justify-center rounded-xl border border-slate-200 bg-white p-8 shadow-xs">
@@ -114,8 +89,6 @@ export const MenuManagementDetailPanel: React.FC<MenuManagementDetailPanelProps>
     );
   }
 
-  const isExternalMenu = draft.menuType === 'external';
-
   return (
     <section className="flex h-full min-h-0 flex-col overflow-hidden rounded-xl border border-slate-200 bg-white shadow-xs">
       {/* Top Header Toolbar */}
@@ -133,17 +106,12 @@ export const MenuManagementDetailPanel: React.FC<MenuManagementDetailPanelProps>
                 {isCreateMode ? 'สร้างเมนูใหม่ (Create)' : 'รายละเอียดเมนู (Detail)'}
               </span>
               <span className="rounded-full bg-slate-200/80 px-2 py-0.5 text-[11px] font-medium text-slate-600">
-                {isExternalMenu
-                  ? 'External App'
-                  : draft.endpoint.trim()
-                    ? 'Page Endpoint'
-                    : 'Folder Category'}
+                {draft.endpoint.trim() ? 'Page Endpoint' : 'Folder Category'}
               </span>
             </div>
 
             <h2 className="mt-1 truncate text-base font-bold text-slate-900">
-              {draft.nameEn || 'ร่างเมนูใหม่'}
-              {draft.nameTh ? ` · ${draft.nameTh}` : ''}
+              {draft.nameTh || draft.nameEn || 'ร่างเมนูใหม่'}
             </h2>
           </div>
 
@@ -196,144 +164,26 @@ export const MenuManagementDetailPanel: React.FC<MenuManagementDetailPanelProps>
             description="ชื่อที่จะแสดงในเมนูและใช้ค้นหาในระบบ"
             icon={ClipboardList}
           >
-            <div className="grid gap-3 sm:grid-cols-2">
+            <div className="grid gap-3">
               <label className="block space-y-1">
                 <span className="text-xs font-semibold text-slate-700">
-                  Name EN <span className="text-rose-500">*</span>
+                  ชื่อเมนู <span className="text-rose-500">*</span>
                 </span>
                 <input
-                  value={draft.nameEn}
-                  onChange={(e) => onChangeDraft({ nameEn: e.target.value })}
-                  disabled={!canEdit}
-                  className={inputClass}
-                  placeholder="เช่น Menu Management, Dashboard"
-                />
-              </label>
-
-              <label className="block space-y-1">
-                <span className="text-xs font-semibold text-slate-700">
-                  Name TH <span className="text-rose-500">*</span>
-                </span>
-                <input
-                  value={draft.nameTh}
-                  onChange={(e) => onChangeDraft({ nameTh: e.target.value })}
-                  disabled={!canEdit}
-                  className={inputClass}
-                  placeholder="เช่น จัดการโครงสร้างเมนู, ภาพรวมระบบ"
-                />
-              </label>
-            </div>
-          </SectionPanel>
-
-          {/* Section 2: External application */}
-          <SectionPanel
-            title="ประเภทเมนู & การเชื่อมต่อระบบ (Application Type & Integration)"
-            description={
-              isExternalMenu
-                ? 'กำหนดปลายทาง URL และรูปแบบการเชื่อมต่อระบบภายนอก'
-                : 'เมนูภายใน (Internal) ใช้ Route ภายในของระบบ Foresee Logix'
-            }
-            icon={Globe}
-            tone="muted"
-          >
-            <div className="grid gap-3 sm:grid-cols-3">
-              <label className="block space-y-1">
-                <span className="text-xs font-semibold text-slate-700">
-                  Menu Type
-                </span>
-                <SearchableSelect
-                  value={draft.menuType}
-                  options={menuTypeSelectOptions}
-                  disabled={!canEdit}
-                  placeholder="เลือกประเภทเมนู"
-                  onChange={(value) => {
-                    const nextType = value ?? draft.menuType;
-                    onChangeDraft({
-                      menuType: nextType,
-                      externalUrl: nextType === 'external' ? draft.externalUrl : '',
-                      targetPath: nextType === 'external' ? draft.targetPath : '',
-                      openMode: nextType === 'external' ? draft.openMode : 'iframe',
-                      authenticationMode:
-                        nextType === 'external' ? draft.authenticationMode : 'none',
-                    });
+                  value={draft.nameTh || draft.nameEn}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    onChangeDraft({ nameTh: val, nameEn: val });
                   }}
+                  disabled={!canEdit}
+                  className={inputClass}
+                  placeholder="เช่น จัดการโครงสร้างเมนู, ภาพรวมระบบ, จัดการงาน"
                 />
-                <p className="text-[11px] text-slate-400">
-                  {menuTypeOptions.find((o) => o.value === draft.menuType)?.description}
-                </p>
               </label>
-
-              {isExternalMenu && (
-                <label className="block space-y-1 sm:col-span-2">
-                  <span className="text-xs font-semibold text-slate-700">
-                    External URL <span className="text-rose-500">*</span>
-                  </span>
-                  <div className="relative">
-                    <Globe className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
-                    <input
-                      value={draft.externalUrl}
-                      onChange={(e) => onChangeDraft({ externalUrl: e.target.value })}
-                      disabled={!canEdit}
-                      className={`${inputClass} pl-8.5`}
-                      placeholder="https://external-app.example.com"
-                    />
-                  </div>
-                  <p className="text-[11px] text-slate-400">
-                    URL ของระบบปลายทางภายนอก
-                  </p>
-                </label>
-              )}
             </div>
-
-            {isExternalMenu && (
-              <div className="mt-3 grid gap-3 sm:grid-cols-3">
-                <label className="block space-y-1">
-                  <span className="text-xs font-semibold text-slate-700">
-                    Target Path
-                  </span>
-                  <input
-                    value={draft.targetPath}
-                    onChange={(e) => onChangeDraft({ targetPath: e.target.value })}
-                    disabled={!canEdit}
-                    className={inputClass}
-                    placeholder="/crm/customers"
-                  />
-                </label>
-
-                <label className="block space-y-1">
-                  <span className="text-xs font-semibold text-slate-700">
-                    Open Mode
-                  </span>
-                  <SearchableSelect
-                    value={draft.openMode}
-                    options={openModeSelectOptions}
-                    disabled={!canEdit}
-                    onChange={(value) =>
-                      onChangeDraft({ openMode: value ?? draft.openMode })
-                    }
-                  />
-                </label>
-
-                <label className="block space-y-1">
-                  <span className="text-xs font-semibold text-slate-700">
-                    Authentication Mode
-                  </span>
-                  <SearchableSelect
-                    value={draft.authenticationMode}
-                    options={authenticationModeSelectOptions}
-                    disabled={!canEdit}
-                    onChange={(value) =>
-                      onChangeDraft({
-                        authenticationMode: value ?? draft.authenticationMode,
-                      })
-                    }
-                  />
-                </label>
-              </div>
-            )}
           </SectionPanel>
 
-          {/* Section 3: Placement */}
+          {/* Section 2: Placement & Routing */}
           <SectionPanel
             title="ตำแหน่งและเส้นทาง (Placement & Routing)"
             description="กำหนดตำแหน่งในระดับชั้นเมนูและ route endpoint"
@@ -355,9 +205,7 @@ export const MenuManagementDetailPanel: React.FC<MenuManagementDetailPanelProps>
                   />
                 </div>
                 <p className="text-[11px] text-slate-400">
-                  {isExternalMenu
-                    ? 'กำหนด Route ภายในสำหรับแสดง active state เช่น /external/crm'
-                    : 'เว้นว่างได้ถ้าต้องการให้เมนูนี้เป็น Folder Group ที่ไม่มีการนำทาง'}
+                  เว้นว่างได้ถ้าต้องการให้เมนูนี้เป็น Folder Group ที่ไม่มีการนำทาง
                 </p>
               </label>
 
@@ -394,7 +242,7 @@ export const MenuManagementDetailPanel: React.FC<MenuManagementDetailPanelProps>
             </div>
           </SectionPanel>
 
-          {/* Section 4: Audience assignment */}
+          {/* Section 3: Audience assignment */}
           <SectionPanel
             title="กลุ่มผู้ใช้งาน (Audience Assignment)"
             description="กำหนดว่าระบบจะแสดงเมนูนี้ให้กลุ่มผู้ใช้ใดบ้างโดยอัตโนมัติ"
@@ -416,10 +264,10 @@ export const MenuManagementDetailPanel: React.FC<MenuManagementDetailPanelProps>
             </div>
           </SectionPanel>
 
-          {/* Section 5: Permission Matrix */}
+          {/* Section 4: Permission Matrix */}
           <SectionPanel
-            title="สิทธิ์การดำเนินการ (Permission Matrix)"
-            description="เลือกสิทธิ์การใช้งานที่เมนูนี้รองรับ"
+            title="สิทธิ์การดำเนินการที่รองรับ (Supported Action Capabilities)"
+            description="เลือกสิทธิ์การดำเนินการที่เมนูนี้รองรับ"
             icon={SquarePen}
           >
             <div className="grid gap-3 sm:grid-cols-3">
@@ -437,7 +285,7 @@ export const MenuManagementDetailPanel: React.FC<MenuManagementDetailPanelProps>
             </div>
           </SectionPanel>
 
-          {/* Section 6: Danger Zone (Delete) */}
+          {/* Section 5: Danger Zone (Delete) */}
           {!isCreateMode && canDelete && selectedMenu && (
             <SectionPanel
               title="พื้นที่อันตราย (Danger Zone)"

@@ -100,10 +100,27 @@ export const UserMenuAssignmentModal: React.FC<UserMenuAssignmentModalProps> = (
     });
   };
 
+  const isTargetAdmin = user?.role?.toLowerCase() === 'admin';
+
   // Toggle single permission key on a menu node
   const handleTogglePermission = (menuId: number, key: UserMenuPermissionKey) => {
     setTree((prevTree) =>
       updateNodeInTree(prevTree, menuId, (node) => {
+        const isMenuMgmt =
+          node.endpoint === '/menu-managements' ||
+          node.endpoint === '/menu-managements/permissions';
+        if (isTargetAdmin && isMenuMgmt) {
+          return {
+            ...node,
+            isRead: true,
+            isCreate: true,
+            isUpdate: true,
+            isDelete: true,
+            isImport: true,
+            isExport: true,
+          };
+        }
+
         const nextValue = !node[key];
         const updated = { ...node, [key]: nextValue };
         // If enabling create/update/delete/import/export, also ensure isRead is enabled if supported
@@ -125,6 +142,13 @@ export const UserMenuAssignmentModal: React.FC<UserMenuAssignmentModalProps> = (
 
   // Toggle all permissions for a specific row
   const handleToggleRowAll = (node: UserMenuPermissionNode) => {
+    const isMenuMgmt =
+      node.endpoint === '/menu-managements' ||
+      node.endpoint === '/menu-managements/permissions';
+    if (isTargetAdmin && isMenuMgmt) {
+      return;
+    }
+
     const keys: UserMenuPermissionKey[] = [
       'isRead',
       'isCreate',
@@ -159,16 +183,24 @@ export const UserMenuAssignmentModal: React.FC<UserMenuAssignmentModalProps> = (
   // Bulk select all supported permissions for all menus
   const handleSelectAll = (onlyRead = false) => {
     const applyToAll = (nodes: UserMenuPermissionNode[]): UserMenuPermissionNode[] => {
-      return nodes.map((node) => ({
-        ...node,
-        isRead: node.canRead ? true : node.isRead,
-        isCreate: !onlyRead && node.canCreate ? true : node.isCreate,
-        isUpdate: !onlyRead && node.canUpdate ? true : node.isUpdate,
-        isDelete: !onlyRead && node.canDelete ? true : node.isDelete,
-        isImport: !onlyRead && node.canImport ? true : node.isImport,
-        isExport: !onlyRead && node.canExport ? true : node.isExport,
-        children: applyToAll(node.children || []),
-      }));
+      return nodes.map((node) => {
+        const isFolder = (node.children && node.children.length > 0) || !node.endpoint;
+        const isMenuMgmt =
+          node.endpoint === '/menu-managements' ||
+          node.endpoint === '/menu-managements/permissions';
+        const isLocked = isTargetAdmin && isMenuMgmt;
+
+        return {
+          ...node,
+          isRead: isLocked ? true : !isFolder && node.canRead ? true : false,
+          isCreate: isLocked ? true : !isFolder && !onlyRead && node.canCreate ? true : false,
+          isUpdate: isLocked ? true : !isFolder && !onlyRead && node.canUpdate ? true : false,
+          isDelete: isLocked ? true : !isFolder && !onlyRead && node.canDelete ? true : false,
+          isImport: isLocked ? true : !isFolder && !onlyRead && node.canImport ? true : false,
+          isExport: isLocked ? true : !isFolder && !onlyRead && node.canExport ? true : false,
+          children: applyToAll(node.children || []),
+        };
+      });
     };
     setTree((prev) => applyToAll(prev));
   };
@@ -176,16 +208,23 @@ export const UserMenuAssignmentModal: React.FC<UserMenuAssignmentModalProps> = (
   // Bulk clear all permissions
   const handleClearAll = () => {
     const clearInNodes = (nodes: UserMenuPermissionNode[]): UserMenuPermissionNode[] => {
-      return nodes.map((node) => ({
-        ...node,
-        isRead: false,
-        isCreate: false,
-        isUpdate: false,
-        isDelete: false,
-        isImport: false,
-        isExport: false,
-        children: clearInNodes(node.children || []),
-      }));
+      return nodes.map((node) => {
+        const isMenuMgmt =
+          node.endpoint === '/menu-managements' ||
+          node.endpoint === '/menu-managements/permissions';
+        const isLocked = isTargetAdmin && isMenuMgmt;
+
+        return {
+          ...node,
+          isRead: isLocked ? true : false,
+          isCreate: isLocked ? true : false,
+          isUpdate: isLocked ? true : false,
+          isDelete: isLocked ? true : false,
+          isImport: isLocked ? true : false,
+          isExport: isLocked ? true : false,
+          children: clearInNodes(node.children || []),
+        };
+      });
     };
     setTree((prev) => clearInNodes(prev));
   };
@@ -556,6 +595,7 @@ export const UserMenuAssignmentModal: React.FC<UserMenuAssignmentModalProps> = (
                       level={level}
                       hasChildren={hasChildren}
                       isCollapsed={isCollapsed}
+                      isTargetUserAdmin={isTargetAdmin}
                       onToggleCollapse={handleToggleCollapse}
                       onTogglePermission={handleTogglePermission}
                       onToggleRowAll={handleToggleRowAll}

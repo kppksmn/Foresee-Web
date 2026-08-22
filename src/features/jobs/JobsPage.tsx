@@ -17,6 +17,7 @@ import { AlertModal } from '../../components/common/CustomModal';
 import { formatDateThai, formatTimeThai } from '../../utils/dateUtils';
 import { CustomScrollSelect } from '../../components/common/CustomScrollSelect';
 import { TableScrollContainer } from '../../components/common/TableScrollContainer';
+import { useMenuPermission } from '../../hooks/useMenuPermission';
 
 interface JobsPageProps {
   mode?: 'active' | 'history';
@@ -24,6 +25,9 @@ interface JobsPageProps {
 
 export const JobsPage: React.FC<JobsPageProps> = ({ mode = 'active' }) => {
   const navigate = useNavigate();
+  const isHistoryMode = mode === 'history';
+  const endpoint = isHistoryMode ? '/jobs/history' : '/jobs';
+  const permissions = useMenuPermission(endpoint);
   const [search, setSearch] = useState('');
   const [status, setStatus] = useState('');
   const [page, setPage] = useState<number>(1);
@@ -33,8 +37,6 @@ export const JobsPage: React.FC<JobsPageProps> = ({ mode = 'active' }) => {
     isOpen: false,
     message: '',
   });
-
-  const isHistoryMode = mode === 'history';
 
   const { data: jobs = [], refetch } = useQuery({
     queryKey: ['admin-jobs', search, status, mode],
@@ -68,7 +70,7 @@ export const JobsPage: React.FC<JobsPageProps> = ({ mode = 'active' }) => {
             {isHistoryMode ? 'รายการงานขนส่งที่ปิดงานแล้ว หรือถูกยกเลิก' : 'รายการงานขนส่งที่กำลังดำเนินการ หรือรอดำเนินการ'}
           </p>
         </div>
-        {!isHistoryMode && (
+        {!isHistoryMode && permissions.canCreate && (
           <div className="flex items-center gap-2 w-full sm:w-auto">
             <button
               onClick={() => navigate('/jobs/create')}
@@ -204,7 +206,7 @@ export const JobsPage: React.FC<JobsPageProps> = ({ mode = 'active' }) => {
                           <JobStatusBadge status={job.status} />
                         </td>
                         <td className="px-5 py-4 text-right whitespace-nowrap align-middle">
-                          {isHistoryMode ? (
+                          {isHistoryMode || !permissions.canUpdate ? (
                             <button
                               onClick={() => navigate(`/jobs/edit/${job.id}?readOnly=true`)}
                               className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium text-xs rounded-lg transition-colors border border-slate-200 cursor-pointer"

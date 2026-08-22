@@ -19,9 +19,10 @@ import {
   ShieldCheck,
   FolderTree,
   FileText,
-  Globe
+  Globe,
+  ShieldAlert
 } from 'lucide-react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import apiClient from '../../api/client';
 import type { UserNavMenu } from '../../features/users/model/types';
 
@@ -44,9 +45,10 @@ const getMenuIcon = (nameEn: string, endpoint?: string | null) => {
   if (clean.includes('vehicle type') || ep.includes('vehicle-types')) return Tag;
   if (clean.includes('vehicle list') || ep.includes('vehicles')) return List;
   if (clean.includes('vehicle') || clean.includes('truck')) return Truck;
+  if (clean.includes('permission') || ep.includes('permissions')) return ShieldCheck;
   if (clean.includes('user') || clean.includes('staff') || ep.includes('users')) return Users;
   if (clean.includes('audit') || clean.includes('log') || ep.includes('audit-logs')) return ShieldCheck;
-  if (clean.includes('menu') || ep.includes('menu-managements')) return FolderTree;
+  if (clean.includes('structure') || clean.includes('menu') || ep.includes('menu-managements')) return FolderTree;
   if (clean.includes('report') || ep.includes('reports')) return FileText;
   if (clean.includes('setting') || ep.includes('settings')) return Globe;
 
@@ -59,7 +61,7 @@ const defaultSidebarItems: SidebarItem[] = [
     text: 'รายการงาน',
     icon: ClipboardList,
     subItems: [
-      { text: 'งานปัจจุบัน', icon: Clock, path: '/jobs' },
+      { text: 'จัดการงาน', icon: Clock, path: '/jobs' },
       { text: 'ประวัติงาน', icon: History, path: '/jobs/history' },
     ],
   },
@@ -73,7 +75,15 @@ const defaultSidebarItems: SidebarItem[] = [
   },
   { text: 'พนักงาน & ผู้ใช้', icon: Users, path: '/users' },
   { text: 'Audit Log', icon: ShieldCheck, path: '/audit-logs' },
-  { text: 'จัดการเมนู', icon: FolderTree, path: '/menu-managements', role: 'Admin' },
+  {
+    text: 'จัดการเมนู',
+    icon: FolderTree,
+    role: 'Admin',
+    subItems: [
+      { text: 'โครงสร้างเมนู', icon: FolderTree, path: '/menu-managements', role: 'Admin' },
+      { text: 'กำหนดสิทธิ์เมนู', icon: ShieldCheck, path: '/menu-managements/permissions', role: 'Admin' },
+    ],
+  },
 ];
 
 export const AdminLayout: React.FC = () => {
@@ -82,31 +92,38 @@ export const AdminLayout: React.FC = () => {
   const [openSubmenus, setOpenSubmenus] = useState<{ [key: string]: boolean }>({
     'รายการงาน': true,
     'จัดการยานพาหนะ': true,
+    'จัดการเมนู': true,
     'Jobs': true,
     'Vehicles': true,
+    'Menu Management': true,
   });
   const navigate = useNavigate();
   const location = useLocation();
+  const queryClient = useQueryClient();
+  const token = localStorage.getItem('access_token') || '';
+  const userId = localStorage.getItem('user_id') || '';
   const userRole = (localStorage.getItem('role') || '').toLowerCase();
 
   // Fetch dynamic navigable menus for the logged in user
-  const { data: userMenus } = useQuery<UserNavMenu[]>({
-    queryKey: ['me-nav-menus'],
+  const { data: userMenus, isLoading: isLoadingMenus } = useQuery<UserNavMenu[]>({
+    queryKey: ['me-nav-menus', userId, token],
     queryFn: async () => {
       const res = await apiClient.get('/api/v1/auth/me/menus');
       return res.data?.data || [];
     },
-    staleTime: 30 * 1000,
+    staleTime: 0,
+    gcTime: 0,
   });
 
   const dynamicSidebarItems: SidebarItem[] = useMemo(() => {
-    if (!userMenus || userMenus.length === 0) {
-      return defaultSidebarItems.filter(
-        (item) => !item.role || item.role.toLowerCase() === userRole
-      );
+    if (userMenus === undefined) {
+      if (userRole === 'admin') {
+        return defaultSidebarItems;
+      }
+      return [];
     }
 
-    return userMenus.map((menu) => {
+    const items: SidebarItem[] = userMenus.map((menu) => {
       const icon = getMenuIcon(menu.nameEn, menu.endpoint);
       const subItems =
         menu.children && menu.children.length > 0
@@ -124,10 +141,78 @@ export const AdminLayout: React.FC = () => {
         subItems,
       };
     });
+
+    // Ensure Admin ALWAYS sees 'จัดการเมนู' (Menu Management)
+    if (userRole === 'admin') {
+      const hasMenuManagement = items.some(
+        (i) =>
+          i.path === '/menu-managements' ||
+          i.text.includes('จัดการเมนู') ||
+          i.text.toLowerCase().includes('menu management')
+      );
+      if (!hasMenuManagement) {
+        items.push({
+          text: 'จัดการเมนู',
+          icon: FolderTree,
+          role: 'Admin',
+          subItems: [
+            { text: 'โครงสร้างเมนู', icon: FolderTree, path: '/menu-managements', role: 'Admin' },
+            { text: 'กำหนดสิทธิ์เมนู', icon: ShieldCheck, path: '/menu-managements/permissions', role: 'Admin' },
+          ],
+        });
+      }
+    }
+
+    return items;
   }, [userMenus, userRole]);
+
+  // Compute set of accessible route endpoints
+  const accessibleEndpoints = useMemo(() => {
+    if (!userMenus) return new Set<string>();
+
+    const set = new Set<string>();
+    const walk = (menus: UserNavMenu[]) => {
+      menus.forEach((m) => {
+        if (m.endpoint) {
+          set.add(m.endpoint.toLowerCase());
+        }
+        if (m.children) walk(m.children);
+      });
+    };
+    walk(userMenus);
+
+    if (userRole === 'admin') {
+      set.add('/menu-managements');
+      set.add('/menu-managements/permissions');
+    }
+
+    return set;
+  }, [userMenus, userRole]);
+
+  const isCurrentRouteAllowed = useMemo(() => {
+    if (isLoadingMenus) return true;
+
+    const path = location.pathname.toLowerCase();
+    if (path === '/' || path === '' || path === '/no-access') return true;
+
+    if (userRole === 'admin' && path.startsWith('/menu-managements')) return true;
+
+    if (accessibleEndpoints.size === 0) return false;
+
+    for (const ep of accessibleEndpoints) {
+      if (path === ep) return true;
+      if (ep !== '/' && ep !== '/dashboard' && path.startsWith(ep + '/')) return true;
+    }
+
+    return false;
+  }, [accessibleEndpoints, userRole, location.pathname, isLoadingMenus]);
 
   const handleLogout = () => {
     localStorage.removeItem('access_token');
+    localStorage.removeItem('user_id');
+    localStorage.removeItem('username');
+    localStorage.removeItem('role');
+    queryClient.clear();
     navigate('/login');
   };
 
@@ -141,6 +226,7 @@ export const AdminLayout: React.FC = () => {
   };
 
   const isPathActive = (targetPath: string, currentPathname: string, searchStr: string = '') => {
+    if (!targetPath) return false;
     if (targetPath === currentPathname) return true;
 
     // Jobs specific matching
@@ -155,8 +241,24 @@ export const AdminLayout: React.FC = () => {
       return false;
     }
 
-    // General sub-route matching
-    if (targetPath !== '/' && targetPath !== '/dashboard' && targetPath !== '/jobs' && currentPathname.startsWith(targetPath + '/')) {
+    // Specific sub-routes under /menu-managements
+    if (targetPath === '/menu-managements') {
+      return currentPathname === '/menu-managements';
+    }
+
+    if (targetPath === '/menu-managements/permissions') {
+      return currentPathname.startsWith('/menu-managements/permissions');
+    }
+
+    // General sub-route matching for detail/edit child routes (excluding base roots)
+    if (
+      targetPath !== '/' &&
+      targetPath !== '/dashboard' &&
+      targetPath !== '/jobs' &&
+      targetPath !== '/vehicles' &&
+      targetPath !== '/menu-managements' &&
+      currentPathname.startsWith(targetPath + '/')
+    ) {
       return true;
     }
 
@@ -205,86 +307,98 @@ export const AdminLayout: React.FC = () => {
 
         {/* Navigation */}
         <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto overflow-x-hidden">
-          {dynamicSidebarItems.map((item) => {
-            const Icon = item.icon;
+          {isLoadingMenus ? (
+            <div className="p-4 text-center text-xs text-slate-400">
+              กำลังโหลดเมนู...
+            </div>
+          ) : dynamicSidebarItems.length === 0 ? (
+            <div className="p-4 text-center text-xs text-slate-400">
+              ไม่มีสิทธิ์เข้าถึงเมนู
+            </div>
+          ) : (
+            dynamicSidebarItems.map((item) => {
+              const Icon = item.icon;
 
-            if (item.subItems) {
-              const isSubActive = item.subItems.some((sub) => isPathActive(sub.path, location.pathname, location.search));
-              const isOpen = openSubmenus[item.text] ?? true;
+              if (item.subItems) {
+                const isSubActive = item.subItems.some((sub) => isPathActive(sub.path, location.pathname, location.search));
+                const isOpen = openSubmenus[item.text] ?? true;
 
-              return (
-                <div key={item.text} className="space-y-1">
-                  <button
-                    onClick={() => toggleSubmenu(item.text)}
-                    title={isCollapsed ? item.text : undefined}
-                    className={`w-full flex items-center ${isCollapsed ? 'justify-center px-0' : 'justify-between px-3.5'} py-2.5 rounded-xl font-medium text-sm transition-colors cursor-pointer ${
-                      isSubActive
-                        ? 'bg-blue-50/50 text-blue-600 font-semibold'
-                        : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
-                    }`}
-                  >
-                    <div className="flex items-center gap-3">
-                      <Icon size={19} className={isSubActive ? 'text-blue-600' : 'text-slate-400'} />
-                      {!isCollapsed && <span className="whitespace-nowrap">{item.text}</span>}
-                    </div>
-                    {!isCollapsed && (
-                      isOpen ? (
-                        <ChevronDown size={16} className="text-slate-400" />
-                      ) : (
-                        <ChevronRight size={16} className="text-slate-400" />
-                      )
+                return (
+                  <div key={item.text} className="space-y-1">
+                    <button
+                      onClick={() => toggleSubmenu(item.text)}
+                      title={isCollapsed ? item.text : undefined}
+                      className={`w-full flex items-center ${isCollapsed ? 'justify-center px-0' : 'justify-between px-3.5'} py-2.5 rounded-xl font-medium text-sm transition-colors cursor-pointer ${
+                        isSubActive
+                          ? 'bg-blue-50/50 text-blue-600 font-semibold'
+                          : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+                      }`}
+                    >
+                      <div className="flex items-center gap-3">
+                        <Icon size={19} className={isSubActive ? 'text-blue-600' : 'text-slate-400'} />
+                        {!isCollapsed && <span className="whitespace-nowrap">{item.text}</span>}
+                      </div>
+                      {!isCollapsed && (
+                        isOpen ? (
+                          <ChevronDown size={16} className="text-slate-400" />
+                        ) : (
+                          <ChevronRight size={16} className="text-slate-400" />
+                        )
+                      )}
+                    </button>
+
+                    {(!isCollapsed && isOpen) && (
+                      <div className="pl-9 space-y-1">
+                        {item.subItems.map((sub) => {
+                          const SubIcon = sub.icon;
+                          const subActive = isPathActive(sub.path, location.pathname, location.search);
+                          return (
+                            <button
+                              key={sub.path}
+                              onClick={() => {
+                                navigate(sub.path);
+                                setMobileOpen(false);
+                              }}
+                              className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg font-medium text-xs transition-colors cursor-pointer ${
+                                subActive
+                                  ? 'bg-blue-600 text-white font-semibold shadow-xs shadow-blue-500/20'
+                                  : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
+                              }`}
+                            >
+                              <SubIcon size={15} className={subActive ? 'text-white' : 'text-slate-400'} />
+                              <span className="whitespace-nowrap">{sub.text}</span>
+                            </button>
+                          );
+                        })}
+                      </div>
                     )}
-                  </button>
+                  </div>
+                );
+              }
 
-                  {(!isCollapsed && isOpen) && (
-                    <div className="pl-9 space-y-1">
-                      {item.subItems.map((sub) => {
-                        const SubIcon = sub.icon;
-                        const subActive = isPathActive(sub.path, location.pathname, location.search);
-                        return (
-                          <button
-                            key={sub.path}
-                            onClick={() => {
-                              navigate(sub.path);
-                              setMobileOpen(false);
-                            }}
-                            className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg font-medium text-xs transition-colors cursor-pointer ${
-                              subActive
-                                ? 'bg-blue-600 text-white font-semibold shadow-xs shadow-blue-500/20'
-                                : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
-                            }`}
-                          >
-                            <SubIcon size={15} className={subActive ? 'text-white' : 'text-slate-400'} />
-                            <span className="whitespace-nowrap">{sub.text}</span>
-                          </button>
-                        );
-                      })}
-                    </div>
-                  )}
-                </div>
+              const active = item.path ? isPathActive(item.path, location.pathname, location.search) : false;
+              return (
+                <button
+                  key={item.text}
+                  onClick={() => {
+                    if (item.path) {
+                      navigate(item.path);
+                      setMobileOpen(false);
+                    }
+                  }}
+                  title={isCollapsed ? item.text : undefined}
+                  className={`w-full flex items-center ${isCollapsed ? 'justify-center px-0' : 'gap-3 px-3.5'} py-2.5 rounded-xl font-medium text-sm transition-colors cursor-pointer ${
+                    active
+                      ? 'bg-blue-50 text-blue-600 font-semibold'
+                      : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+                  }`}
+                >
+                  <Icon size={19} className={active ? 'text-blue-600' : 'text-slate-400'} />
+                  {!isCollapsed && <span className="whitespace-nowrap">{item.text}</span>}
+                </button>
               );
-            }
-
-            const active = item.path ? isPathActive(item.path, location.pathname, location.search) : false;
-            return (
-              <button
-                key={item.text}
-                onClick={() => {
-                  if (item.path) navigate(item.path);
-                  setMobileOpen(false);
-                }}
-                title={isCollapsed ? item.text : undefined}
-                className={`w-full flex items-center ${isCollapsed ? 'justify-center px-0' : 'gap-3 px-3.5'} py-2.5 rounded-xl font-medium text-sm transition-colors cursor-pointer ${
-                  active
-                    ? 'bg-blue-50 text-blue-600 font-semibold'
-                    : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
-                }`}
-              >
-                <Icon size={19} className={active ? 'text-blue-600' : 'text-slate-400'} />
-                {!isCollapsed && <span className="whitespace-nowrap">{item.text}</span>}
-              </button>
-            );
-          })}
+            })
+          )}
         </nav>
 
         {/* Footer Logout */}
@@ -349,7 +463,31 @@ export const AdminLayout: React.FC = () => {
 
         {/* Content Body */}
         <main className="flex-1 p-3.5 sm:p-5 lg:p-8 overflow-y-auto min-w-0">
-          <Outlet />
+          {isLoadingMenus ? (
+            <div className="flex h-64 items-center justify-center text-xs text-slate-400">
+              กำลังตรวจสอบสิทธิ์การเข้าถึง...
+            </div>
+          ) : isCurrentRouteAllowed ? (
+            <Outlet />
+          ) : (
+            <div className="flex flex-col items-center justify-center min-h-[60vh] text-center p-6 animate-in fade-in zoom-in-95 duration-200">
+              <div className="w-16 h-16 rounded-2xl bg-rose-50 text-rose-600 flex items-center justify-center mb-4 shadow-xs">
+                <ShieldAlert size={34} />
+              </div>
+              <h2 className="text-lg font-bold text-slate-900 mb-1.5">
+                คุณไม่มีสิทธิ์เข้าถึงหน้านี้ (Access Restricted)
+              </h2>
+              <p className="text-xs text-slate-500 max-w-md mb-6 leading-relaxed">
+                บัญชีผู้ใช้งานของคุณ (<span className="font-semibold text-slate-700">{localStorage.getItem('username') || 'ผู้ใช้'}</span>) ยังไม่ได้รับสิทธิ์ในการเข้าใช้งานเมนู/หน้านี้ กรุณาติดต่อผู้ดูแลระบบ (Admin) เพื่อขอเปิดสิทธิ์การใช้งาน
+              </p>
+              <button
+                onClick={handleLogout}
+                className="px-4 py-2 text-xs font-semibold text-rose-600 bg-rose-50 hover:bg-rose-100 rounded-xl transition-colors cursor-pointer"
+              >
+                ออกจากระบบ (Sign Out)
+              </button>
+            </div>
+          )}
         </main>
       </div>
     </div>

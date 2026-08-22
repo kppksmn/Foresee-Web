@@ -7,6 +7,7 @@ interface UserMenuAssignmentTreeRowProps {
   level: number;
   isCollapsed: boolean;
   hasChildren: boolean;
+  isTargetUserAdmin?: boolean;
   onToggleCollapse: (menuId: number) => void;
   onTogglePermission: (menuId: number, key: UserMenuPermissionKey) => void;
   onToggleRowAll: (node: UserMenuPermissionNode) => void;
@@ -26,25 +27,52 @@ const permissionKeys: Array<{
   { key: 'isExport', canKey: 'canExport', label: 'ส่งออก (Export)', badgeBg: 'accent-purple-600' },
 ];
 
+const countChildCoverage = (children?: UserMenuPermissionNode[]): { granted: number; total: number } => {
+  if (!children || children.length === 0) return { granted: 0, total: 0 };
+  let granted = 0;
+  let total = 0;
+  const walk = (nodes: UserMenuPermissionNode[]) => {
+    for (const n of nodes) {
+      if (n.children && n.children.length > 0) {
+        walk(n.children);
+      } else {
+        total++;
+        if (n.isRead || n.isCreate || n.isUpdate || n.isDelete || n.isImport || n.isExport) {
+          granted++;
+        }
+      }
+    }
+  };
+  walk(children);
+  return { granted, total };
+};
+
 export const UserMenuAssignmentTreeRow: React.FC<UserMenuAssignmentTreeRowProps> = ({
   node,
   level,
   isCollapsed,
   hasChildren,
+  isTargetUserAdmin = false,
   onToggleCollapse,
   onTogglePermission,
   onToggleRowAll,
 }) => {
+  const ep = (node.endpoint || '').trim().toLowerCase();
   const isExternal = !!node.endpoint?.startsWith('http');
   const isFolder = hasChildren || !node.endpoint;
+  const isMenuManagement =
+    ep === '/menu-managements' ||
+    ep === '/menu-managements/permissions';
+  const isLockedForAdmin = Boolean(isTargetUserAdmin && isMenuManagement);
+  const coverage = hasChildren ? countChildCoverage(node.children) : null;
 
   // Determine if all supported permissions are checked
-  const supportedKeys = permissionKeys.filter((p) => node[p.canKey]);
+  const supportedKeys = !isFolder ? permissionKeys.filter((p) => node[p.canKey]) : [];
   const allSupportedChecked =
     supportedKeys.length > 0 && supportedKeys.every((p) => node[p.key]);
 
   return (
-    <tr className="hover:bg-slate-50/80 transition-colors group">
+    <tr className={`transition-colors group ${isFolder ? 'bg-slate-50/50 hover:bg-slate-100/60 font-semibold' : 'hover:bg-slate-50/80'}`}>
       {/* Menu Name Column */}
       <td className="py-2.5 px-4 align-middle">
         <div
@@ -76,7 +104,7 @@ export const UserMenuAssignmentTreeRow: React.FC<UserMenuAssignmentTreeRowProps>
 
             <div className="min-w-0">
               <div className="flex items-center gap-1.5">
-                <span className="text-xs font-semibold text-slate-800 truncate">
+                <span className={`text-xs truncate ${isFolder ? 'font-bold text-slate-900' : 'font-medium text-slate-800'}`}>
                   {node.nameTh || node.nameEn}
                 </span>
                 {node.nameEn && node.nameTh && (
@@ -84,11 +112,21 @@ export const UserMenuAssignmentTreeRow: React.FC<UserMenuAssignmentTreeRowProps>
                     ({node.nameEn})
                   </span>
                 )}
-                {node.isPublic && (
+                {coverage ? (
+                  <span
+                    className={`text-[10px] font-bold px-1.5 py-0.2 rounded-full border ${
+                      coverage.granted > 0
+                        ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                        : 'bg-slate-100 text-slate-500 border-slate-200'
+                    }`}
+                  >
+                    {coverage.granted}/{coverage.total} เมนู
+                  </span>
+                ) : node.isPublic ? (
                   <span className="text-[10px] font-bold px-1.5 py-0.2 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
                     Public
                   </span>
-                )}
+                ) : null}
               </div>
               {node.endpoint && (
                 <span className="text-[11px] text-slate-400 font-mono">
@@ -102,25 +140,44 @@ export const UserMenuAssignmentTreeRow: React.FC<UserMenuAssignmentTreeRowProps>
 
       {/* Row Quick Select All Button */}
       <td className="py-2.5 px-2 text-center align-middle">
-        <button
-          type="button"
-          onClick={() => onToggleRowAll(node)}
-          title={allSupportedChecked ? 'ยกเลิกสิทธิ์ทั้งหมดของเมนูนี้' : 'เลือกสิทธิ์ทั้งหมดของเมนูนี้'}
-          disabled={supportedKeys.length === 0}
-          className={`p-1 rounded-md transition-colors cursor-pointer ${
-            allSupportedChecked
-              ? 'text-blue-600 bg-blue-50 hover:bg-blue-100'
-              : 'text-slate-300 hover:text-slate-600 hover:bg-slate-100 disabled:opacity-30 disabled:cursor-not-allowed'
-          }`}
-        >
-          <CheckSquare size={15} />
-        </button>
+        {isFolder ? (
+          <span className="text-slate-300 text-xs select-none">-</span>
+        ) : isLockedForAdmin ? (
+          <span className="p-1 rounded-md text-blue-600 bg-blue-50 cursor-not-allowed opacity-80 inline-block" title="สิทธิ์สำหรับผู้ดูแลระบบ (Admin) ไม่สามารถแก้ไขได้">
+            <CheckSquare size={15} />
+          </span>
+        ) : (
+          <button
+            type="button"
+            onClick={() => onToggleRowAll(node)}
+            title={allSupportedChecked ? 'ยกเลิกสิทธิ์ทั้งหมดของเมนูนี้' : 'เลือกสิทธิ์ทั้งหมดของเมนูนี้'}
+            disabled={supportedKeys.length === 0}
+            className={`p-1 rounded-md transition-colors cursor-pointer ${
+              allSupportedChecked
+                ? 'text-blue-600 bg-blue-50 hover:bg-blue-100'
+                : 'text-slate-300 hover:text-slate-600 hover:bg-slate-100 disabled:opacity-30 disabled:cursor-not-allowed'
+            }`}
+          >
+            <CheckSquare size={15} />
+          </button>
+        )}
       </td>
 
       {/* 6 Permission Checkboxes */}
       {permissionKeys.map(({ key, canKey, label, badgeBg }) => {
-        const isSupported = node[canKey];
-        const isChecked = node[key];
+        if (isFolder) {
+          return (
+            <td
+              key={key}
+              className="py-2.5 px-3 text-center align-middle whitespace-nowrap"
+            >
+              <span className="text-slate-300 text-xs select-none">-</span>
+            </td>
+          );
+        }
+
+        const isSupported = isLockedForAdmin || node[canKey];
+        const isChecked = isLockedForAdmin || node[key];
 
         return (
           <td
@@ -128,12 +185,16 @@ export const UserMenuAssignmentTreeRow: React.FC<UserMenuAssignmentTreeRowProps>
             className="py-2.5 px-3 text-center align-middle whitespace-nowrap"
           >
             {isSupported ? (
-              <label className="inline-flex items-center justify-center p-1 cursor-pointer">
+              <label className={`inline-flex items-center justify-center p-1 ${isLockedForAdmin ? 'cursor-not-allowed' : 'cursor-pointer'}`}>
                 <input
                   type="checkbox"
                   checked={isChecked}
-                  onChange={() => onTogglePermission(node.menuId, key)}
-                  className={`w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500/20 cursor-pointer ${badgeBg}`}
+                  disabled={isLockedForAdmin}
+                  onChange={() => !isLockedForAdmin && onTogglePermission(node.menuId, key)}
+                  title={isLockedForAdmin ? 'สิทธิ์สำหรับผู้ดูแลระบบ (Admin) เปิดใช้งานตลอดเวลา' : undefined}
+                  className={`w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500/20 ${
+                    isLockedForAdmin ? 'cursor-not-allowed opacity-90 accent-blue-600' : `cursor-pointer ${badgeBg}`
+                  }`}
                 />
               </label>
             ) : (

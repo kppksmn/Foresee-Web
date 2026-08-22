@@ -116,7 +116,7 @@ export function flattenMenuManagementParentOptions(
     return [
       {
         id: item.id,
-        label: item.nameEn,
+        label: item.nameTh || item.nameEn,
         level,
       },
       ...children,
@@ -125,12 +125,9 @@ export function flattenMenuManagementParentOptions(
 }
 
 export function validateMenuManagementDraft(draft: MenuManagementDraft): string | null {
-  if (!draft.nameEn.trim()) {
-    return 'กรุณากรอก Name EN';
-  }
-
-  if (!draft.nameTh.trim()) {
-    return 'กรุณากรอก Name TH';
+  const name = (draft.nameTh || draft.nameEn || '').trim();
+  if (!name) {
+    return 'กรุณากรอกชื่อเมนู';
   }
 
   if (draft.seq <= 0) {

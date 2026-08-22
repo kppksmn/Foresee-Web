@@ -190,7 +190,7 @@ function TreeNode({
             isSelected ? 'font-bold text-blue-700' : 'text-slate-700'
           }`}
         >
-          {item.nameEn}
+          {item.nameTh || item.nameEn}
         </span>
 
         <span className="ml-auto flex shrink-0 items-center gap-1.5">

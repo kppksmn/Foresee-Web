@@ -132,7 +132,7 @@ export const MenuManagementPage: React.FC = () => {
     setConfirmState({
       isOpen: true,
       title: 'ยืนยันการบันทึกข้อมูลเมนู',
-      message: `ต้องการบันทึกข้อมูลเมนู "${draft.nameEn}" ใช่หรือไม่? การเปลี่ยนแปลงจะมีผลในระบบทันที`,
+      message: `ต้องการบันทึกข้อมูลเมนู "${draft.nameTh || draft.nameEn}" ใช่หรือไม่? การเปลี่ยนแปลงจะมีผลในระบบทันที`,
       confirmText: 'ยืนยันการบันทึก',
       type: 'info',
       onConfirm: async () => {
@@ -146,7 +146,7 @@ export const MenuManagementPage: React.FC = () => {
           setAlertState({
             isOpen: true,
             title: 'บันทึกสำเร็จ',
-            message: `บันทึกข้อมูลเมนู "${savedMenu.nameEn}" เรียบร้อยแล้ว`,
+            message: `บันทึกข้อมูลเมนู "${savedMenu.nameTh || savedMenu.nameEn}" เรียบร้อยแล้ว`,
             type: 'success',
           });
         } catch (err: any) {
@@ -172,7 +172,11 @@ export const MenuManagementPage: React.FC = () => {
     setConfirmState({
       isOpen: true,
       title: 'ยืนยันการลบเมนู',
-      message: `เมนู "${selectedMenu.nameEn}" และเมนูลูกทั้งหมด (${descendantCount} เมนูย่อย) จะถูกลบและไม่แสดงผลในระบบอีก ต้องการดำเนินการต่อหรือไม่?`,
+      message: `ต้องการลบเมนู "${selectedMenu.nameTh || selectedMenu.nameEn}"${
+        descendantCount > 0
+          ? ` และเมนูย่อยทั้งหมดอีก ${descendantCount} รายการ`
+          : ''
+      } ใช่หรือไม่? การลบนี้จะถูกซ่อนจากระบบและไม่สามารถกู้คืนได้`,
       confirmText: 'ยืนยันการลบ',
       type: 'danger',
       onConfirm: async () => {

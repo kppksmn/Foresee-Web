@@ -22,6 +22,7 @@ import { CustomScrollSelect } from '../../components/common/CustomScrollSelect';
 import { ConfirmModal } from '../../components/common/CustomModal';
 import { FormControl, Select, MenuItem } from '@mui/material';
 import { formatDateThai, formatPhoneNumber } from '../../utils/dateUtils';
+import { useMenuPermission } from '../../hooks/useMenuPermission';
 
 declare global {
   interface Window {
@@ -34,8 +35,10 @@ export const CreateJobPage: React.FC = () => {
   const queryClient = useQueryClient();
   const { id: jobId } = useParams<{ id: string }>();
   const [searchParams] = useSearchParams();
-  const isReadOnly = searchParams.get('readOnly') === 'true';
+  const permissions = useMenuPermission('/jobs');
+  const isRequestedReadOnly = searchParams.get('readOnly') === 'true';
   const isEditMode = Boolean(jobId);
+  const isReadOnly = isRequestedReadOnly || (isEditMode && !permissions.canUpdate);
 
   const locationSearchRef = useRef<HTMLDivElement>(null);
   const mapContainerRef = useRef<HTMLDivElement>(null);
@@ -648,6 +651,28 @@ export const CreateJobPage: React.FC = () => {
     }
   };
 
+  if (!permissions.isLoading && !isEditMode && !permissions.canCreate) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[50vh] text-center p-6 bg-white rounded-2xl border border-slate-200 shadow-xs max-w-xl mx-auto mt-8 animate-in fade-in">
+        <div className="w-14 h-14 rounded-2xl bg-rose-50 text-rose-600 flex items-center justify-center mb-3.5 shadow-xs">
+          <AlertTriangle size={28} />
+        </div>
+        <h2 className="text-base font-bold text-slate-900 mb-1.5">
+          คุณไม่มีสิทธิ์สร้างงานใหม่ (Create Permission Required)
+        </h2>
+        <p className="text-xs text-slate-500 max-w-sm mb-5 leading-relaxed">
+          บัญชีผู้ใช้งานของคุณไม่ได้รับสิทธิ์ในการสร้างงานใหม่ กรุณาติดต่อผู้ดูแลระบบเพื่อขอเปิดสิทธิ์การใช้งาน
+        </p>
+        <button
+          onClick={() => navigate('/jobs')}
+          className="px-4 py-2 text-xs font-semibold text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-xl transition-colors cursor-pointer"
+        >
+          กลับหน้ารายการงาน
+        </button>
+      </div>
+    );
+  }
+
   return (
     <div className="max-w-5xl mx-auto space-y-6 pb-12">
       {/* Confirmation Modal for Create / Edit */}
@@ -1211,7 +1236,7 @@ export const CreateJobPage: React.FC = () => {
 
         {/* Submit Actions */}
         <div className="flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-between gap-3 pt-3 border-t border-slate-200/60">
-          {!isReadOnly && isEditMode ? (
+          {!isReadOnly && isEditMode && permissions.canDelete ? (
             <button
               type="button"
               onClick={() => setIsDeleteModalOpen(true)}

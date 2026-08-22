@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Truck, User, Lock, Eye, EyeOff, ShieldCheck, ArrowRight, AlertCircle } from 'lucide-react';
+import { useQueryClient } from '@tanstack/react-query';
 import apiClient from '../../api/client';
 
 export const LoginPage: React.FC = () => {
@@ -11,6 +12,7 @@ export const LoginPage: React.FC = () => {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
 
   React.useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -36,6 +38,7 @@ export const LoginPage: React.FC = () => {
     try {
       const res = await apiClient.post('/api/v1/auth/login', { username: cleanUsername, password, channel: 1 });
       if (res.data.success && res.data.data.accessToken) {
+        queryClient.clear();
         localStorage.setItem('access_token', res.data.data.accessToken);
         if (res.data.data.userId) {
           localStorage.setItem('user_id', res.data.data.userId.toString());
@@ -51,7 +54,35 @@ export const LoginPage: React.FC = () => {
         } else {
           localStorage.removeItem('remembered_username');
         }
-        navigate('/dashboard');
+
+        let targetRoute = '/dashboard';
+        const userRole = (res.data.data.role || '').toLowerCase();
+        if (userRole !== 'admin') {
+          try {
+            const menuRes = await apiClient.get('/api/v1/auth/me/menus', {
+              headers: { Authorization: `Bearer ${res.data.data.accessToken}` }
+            });
+            const menus = menuRes.data?.data || [];
+
+            const findFirstEndpoint = (list: any[]): string | null => {
+              for (const m of list) {
+                if (m.endpoint) return m.endpoint;
+                if (m.children?.length) {
+                  const childEp = findFirstEndpoint(m.children);
+                  if (childEp) return childEp;
+                }
+              }
+              return null;
+            };
+
+            const firstEp = findFirstEndpoint(menus);
+            targetRoute = firstEp || '/no-access';
+          } catch {
+            targetRoute = '/no-access';
+          }
+        }
+
+        navigate(targetRoute);
       } else {
         setError('ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง');
       }
