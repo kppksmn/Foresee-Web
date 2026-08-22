@@ -9,7 +9,8 @@ import {
   CheckCircle2,
   Truck,
   Briefcase,
-  UserCheck
+  UserCheck,
+  FileSpreadsheet
 } from 'lucide-react';
 import { JobStatusBadge } from '../../components/common/StatusBadge';
 import { useNavigate } from 'react-router-dom';
@@ -19,6 +20,7 @@ import { AlertModal } from '../../components/common/CustomModal';
 import { formatDateThai, formatTimeThai } from '../../utils/dateUtils';
 import { CustomScrollSelect } from '../../components/common/CustomScrollSelect';
 import { TableScrollContainer } from '../../components/common/TableScrollContainer';
+import { exportToExcel, formatJobStatusThai } from '../../utils/excelExport';
 
 export const MyJobsPage: React.FC = () => {
   const navigate = useNavigate();
@@ -47,6 +49,45 @@ export const MyJobsPage: React.FC = () => {
     },
   });
 
+  const handleExportExcel = () => {
+    if (!jobs || jobs.length === 0) return;
+
+    const headers = [
+      'เลขที่งาน',
+      'หัวข้องาน',
+      'รายละเอียดงาน',
+      'สถานที่ / จุดรับ-ส่ง',
+      'พนักงานขับรถ',
+      'ผู้ร่วมเดินทาง',
+      'ทะเบียนรถ',
+      'ประเภทรถ',
+      'วันที่นัดหมาย',
+      'เวลานัดหมาย',
+      'สถานะงาน',
+      'ชื่อผู้ติดต่อ',
+      'เบอร์โทรผู้ติดต่อ'
+    ];
+
+    const rows = jobs.map((j: any) => [
+      j.jobNumber || '',
+      j.title || '',
+      j.description || '',
+      j.pickupLocation || '',
+      j.driverName || '-',
+      j.companionName || '-',
+      j.vehiclePlate || '-',
+      j.vehicleType || '-',
+      j.scheduledDate ? formatDateThai(j.scheduledDate) : '-',
+      j.scheduledTime || (j.scheduledStartAt ? formatTimeThai(j.scheduledStartAt) : '-'),
+      formatJobStatusThai(j.status),
+      j.contactName || '-',
+      j.contactPhone || '-'
+    ]);
+
+    const dateStr = new Date().toISOString().slice(0, 10);
+    exportToExcel(`งานของฉัน_${dateStr}`, headers, rows);
+  };
+
   // Calculate stats
   const totalCount = jobs.length;
   const activeCount = jobs.filter((j: any) => ['Pending', 'Assigned', 'Started', 'Arrived'].includes(j.status)).length;
@@ -72,6 +113,15 @@ export const MyJobsPage: React.FC = () => {
             รายการงานขนส่งที่คุณได้รับมอบหมายเป็นพนักงานขับรถหรือผู้ร่วมเดินทาง
           </p>
         </div>
+        <button
+          onClick={handleExportExcel}
+          disabled={jobs.length === 0}
+          className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white font-medium text-sm rounded-xl transition-colors shadow-xs cursor-pointer shrink-0"
+          title="ส่งออกรายการงานเป็นไฟล์ Excel (.csv)"
+        >
+          <FileSpreadsheet size={18} />
+          <span>ส่งออก Excel</span>
+        </button>
       </div>
 
       {/* Summary KPI Cards */}

@@ -7,7 +7,8 @@ import {
   Pencil,
   Eye,
   Users,
-  Calendar
+  Calendar,
+  FileSpreadsheet
 } from 'lucide-react';
 import { JobStatusBadge } from '../../components/common/StatusBadge';
 import { useNavigate } from 'react-router-dom';
@@ -19,6 +20,7 @@ import { formatDateThai, formatTimeThai } from '../../utils/dateUtils';
 import { CustomScrollSelect } from '../../components/common/CustomScrollSelect';
 import { TableScrollContainer } from '../../components/common/TableScrollContainer';
 import { useMenuPermission } from '../../hooks/useMenuPermission';
+import { exportToExcel, formatJobStatusThai } from '../../utils/excelExport';
 
 interface JobsPageProps {
   mode?: 'active' | 'history';
@@ -54,6 +56,46 @@ export const JobsPage: React.FC<JobsPageProps> = ({ mode = 'active' }) => {
     },
   });
 
+  const handleExportExcel = () => {
+    if (!jobs || jobs.length === 0) return;
+
+    const headers = [
+      'เลขที่งาน',
+      'หัวข้องาน',
+      'รายละเอียดงาน',
+      'สถานที่ / จุดรับ-ส่ง',
+      'พนักงานขับรถ',
+      'ผู้ร่วมเดินทาง',
+      'ทะเบียนรถ',
+      'ประเภทรถ',
+      'วันที่นัดหมาย',
+      'เวลานัดหมาย',
+      'สถานะงาน',
+      'ชื่อผู้ติดต่อ',
+      'เบอร์โทรผู้ติดต่อ'
+    ];
+
+    const rows = jobs.map((j: any) => [
+      j.jobNumber || '',
+      j.title || '',
+      j.description || '',
+      j.pickupLocation || '',
+      j.driverName || '-',
+      j.companionName || '-',
+      j.vehiclePlate || '-',
+      j.vehicleType || '-',
+      j.scheduledDate ? formatDateThai(j.scheduledDate) : '-',
+      j.scheduledTime || (j.scheduledStartAt ? formatTimeThai(j.scheduledStartAt) : '-'),
+      formatJobStatusThai(j.status),
+      j.contactName || '-',
+      j.contactPhone || '-'
+    ]);
+
+    const prefix = isHistoryMode ? 'ประวัติงานขนส่ง' : 'รายการงานขนส่ง';
+    const dateStr = new Date().toISOString().slice(0, 10);
+    exportToExcel(`${prefix}_${dateStr}`, headers, rows);
+  };
+
   return (
     <div className="space-y-6">
       <AlertModal
@@ -72,17 +114,28 @@ export const JobsPage: React.FC<JobsPageProps> = ({ mode = 'active' }) => {
             {isHistoryMode ? 'รายการงานขนส่งที่ปิดงานแล้ว หรือถูกยกเลิก' : 'รายการงานขนส่งที่กำลังดำเนินการ หรือรอดำเนินการ'}
           </p>
         </div>
-        {!isHistoryMode && permissions.canCreate && (
-          <div className="flex items-center gap-2 w-full sm:w-auto">
+        <div className="flex items-center gap-2 w-full sm:w-auto">
+          {permissions.canExport && (
+            <button
+              onClick={handleExportExcel}
+              disabled={jobs.length === 0}
+              className="inline-flex items-center justify-center gap-1.5 px-3.5 py-2.5 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white font-medium text-sm rounded-xl transition-colors shadow-xs cursor-pointer shrink-0"
+              title="ส่งออกรายการงานเป็นไฟล์ Excel (.csv)"
+            >
+              <FileSpreadsheet size={17} />
+              <span>ส่งออก Excel</span>
+            </button>
+          )}
+          {!isHistoryMode && permissions.canCreate && (
             <button
               onClick={() => navigate('/jobs/create')}
-              className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-medium text-sm rounded-xl transition-colors shadow-sm shadow-blue-500/20 cursor-pointer"
+              className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-medium text-sm rounded-xl transition-colors shadow-sm shadow-blue-500/20 cursor-pointer shrink-0"
             >
               <Plus size={18} />
               <span>สร้างงานใหม่</span>
             </button>
-          </div>
-        )}
+          )}
+        </div>
       </div>
 
       {/* Filter & Search Bar */}
