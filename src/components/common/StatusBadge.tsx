@@ -21,12 +21,8 @@ export const JobStatusBadge: React.FC<StatusBadgeProps> = ({ status }) => {
       label = 'เริ่มงานแล้ว';
       bg = 'bg-indigo-50 text-indigo-700 border-indigo-200/60';
       break;
-    case 'Arrived':
-      label = 'ถึงสถานที่แล้ว';
-      bg = 'bg-sky-50 text-sky-700 border-sky-200/60';
-      break;
     case 'Completed':
-      label = 'ปิดงานแล้ว';
+      label = 'เสร็จสิ้น';
       bg = 'bg-emerald-50 text-emerald-700 border-emerald-200/60';
       break;
     case 'Cancelled':

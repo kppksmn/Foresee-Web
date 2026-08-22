@@ -503,8 +503,7 @@ export const CreateJobPage: React.FC = () => {
   const statusColorConfig: Record<string, { bg: string; text: string; border: string; label: string }> = {
     Pending: { bg: '#fef3c7', text: '#b45309', border: '#fcd34d', label: 'รอมอบหมาย (Pending)' },
     Assigned: { bg: '#eff6ff', text: '#1d4ed8', border: '#93c5fd', label: 'มอบหมายแล้ว (Assigned)' },
-    Started: { bg: '#eef2ff', text: '#4338ca', border: '#a5b4fc', label: 'เริ่มเดินทาง (Started)' },
-    Arrived: { bg: '#f0f9ff', text: '#0369a1', border: '#7dd3fc', label: 'ถึงจุดหมาย (Arrived)' },
+    Started: { bg: '#eef2ff', text: '#4338ca', border: '#a5b4fc', label: 'เริ่มงานแล้ว (Started)' },
     Completed: { bg: '#ecfdf5', text: '#047857', border: '#6ee7b7', label: 'เสร็จสิ้น (Completed)' },
     Cancelled: { bg: '#fff1f2', text: '#be123c', border: '#fda4af', label: 'ยกเลิก (Cancelled)' },
   };

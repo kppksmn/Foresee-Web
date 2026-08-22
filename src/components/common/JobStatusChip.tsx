@@ -22,12 +22,8 @@ export const JobStatusChip: React.FC<Props> = ({ status }) => {
       label = 'เริ่มงานแล้ว';
       color = 'secondary';
       break;
-    case 'Arrived':
-      label = 'ถึงสถานที่แล้ว';
-      color = 'info';
-      break;
     case 'Completed':
-      label = 'ปิดงานแล้ว';
+      label = 'เสร็จสิ้น';
       color = 'success';
       break;
     case 'Cancelled':

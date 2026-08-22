@@ -231,14 +231,13 @@ export const JobsPage: React.FC<JobsPageProps> = ({ mode = 'active' }) => {
               options={
                 isHistoryMode
                   ? [
-                      { label: 'ปิดงานแล้ว', value: 'Completed' },
+                      { label: 'เสร็จสิ้น', value: 'Completed' },
                       { label: 'ยกเลิก', value: 'Cancelled' },
                     ]
                   : [
                       { label: 'รอมอบหมาย', value: 'Pending' },
                       { label: 'มอบหมายแล้ว', value: 'Assigned' },
                       { label: 'เริ่มงานแล้ว', value: 'Started' },
-                      { label: 'ถึงสถานที่แล้ว', value: 'Arrived' },
                     ]
               }
             />

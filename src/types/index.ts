@@ -17,7 +17,7 @@ export interface Job {
   companionName?: string;
   vehicleId?: number;
   vehiclePlate?: string;
-  status: 'Pending' | 'Assigned' | 'Started' | 'Arrived' | 'Completed' | 'Cancelled';
+  status: 'Pending' | 'Assigned' | 'Started' | 'Completed' | 'Cancelled';
   pickupLocation: string;
   companions?: string;
   scheduledStartAt?: string;

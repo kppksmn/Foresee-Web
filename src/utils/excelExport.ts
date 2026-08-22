@@ -38,10 +38,8 @@ export const formatJobStatusThai = (status: string): string => {
       return 'มอบหมายแล้ว';
     case 'Started':
       return 'เริ่มงานแล้ว';
-    case 'Arrived':
-      return 'ถึงสถานที่แล้ว';
     case 'Completed':
-      return 'ปิดงานแล้ว';
+      return 'เสร็จสิ้น';
     case 'Cancelled':
       return 'ยกเลิก';
     default:

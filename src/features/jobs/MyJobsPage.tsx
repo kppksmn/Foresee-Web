@@ -99,7 +99,7 @@ export const MyJobsPage: React.FC = () => {
 
   // Calculate stats
   const totalCount = jobs.length;
-  const activeCount = jobs.filter((j: any) => ['Pending', 'Assigned', 'Started', 'Arrived'].includes(j.status)).length;
+  const activeCount = jobs.filter((j: any) => ['Pending', 'Assigned', 'Started'].includes(j.status)).length;
   const completedCount = jobs.filter((j: any) => j.status === 'Completed').length;
 
   return (
@@ -252,8 +252,7 @@ export const MyJobsPage: React.FC = () => {
                 { label: 'รอมอบหมาย', value: 'Pending' },
                 { label: 'มอบหมายแล้ว', value: 'Assigned' },
                 { label: 'เริ่มงานแล้ว', value: 'Started' },
-                { label: 'ถึงสถานที่แล้ว', value: 'Arrived' },
-                { label: 'ปิดงานแล้ว', value: 'Completed' },
+                { label: 'เสร็จสิ้น', value: 'Completed' },
                 { label: 'ยกเลิก', value: 'Cancelled' },
               ]}
             />
