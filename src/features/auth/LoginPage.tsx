@@ -38,6 +38,7 @@ export const LoginPage: React.FC = () => {
     try {
       const res = await apiClient.post('/api/v1/auth/login', { username: cleanUsername, password, channel: 1 });
       if (res.data.success && res.data.data.accessToken) {
+        sessionStorage.clear();
         queryClient.clear();
         localStorage.setItem('access_token', res.data.data.accessToken);
         if (res.data.data.userId) {

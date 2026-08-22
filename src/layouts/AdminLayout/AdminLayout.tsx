@@ -231,6 +231,7 @@ export const AdminLayout: React.FC = () => {
     localStorage.removeItem('user_id');
     localStorage.removeItem('username');
     localStorage.removeItem('role');
+    sessionStorage.clear();
     queryClient.clear();
     navigate('/login');
   };
