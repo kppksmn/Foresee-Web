@@ -799,7 +799,7 @@ export const UsersPage: React.FC = () => {
                       <div className="text-[11px] text-amber-700/90 mt-0.5">
                         {getAutoPassword() ? (
                           <>
-                            รหัสผ่านวันเดือนปีเกิด: <span className="font-mono font-bold text-amber-900 bg-white px-1.5 py-0.5 rounded border border-amber-200">{getAutoPassword()}</span> (ดดมมปปปป)
+                            รหัสผ่านวันเดือนปีเกิด: <span className="font-mono font-bold text-amber-900 bg-white px-1.5 py-0.5 rounded border border-amber-200">{getAutoPassword()}</span>
                           </>
                         ) : (
                           'รีเซ็ตรหัสผ่านกลับเป็นวันเดือนปีเกิดเริ่มต้น'
@@ -831,7 +831,7 @@ export const UsersPage: React.FC = () => {
                     </div>
                   ) : (
                     <div className="mt-1 text-[11px] text-slate-400">
-                      * รหัสผ่านเริ่มต้นจะถูกตั้งเป็น ดดมมปปปป (เช่น 9 ธ.ค. 2537 → <span className="font-mono font-semibold text-slate-600">09122537</span>)
+                      * รหัสผ่านเริ่มต้นจะถูกตั้งเป็นวันเดือนปีเกิด (เช่น 9 ธ.ค. 2537 → <span className="font-mono font-semibold text-slate-600">09122537</span>)
                     </div>
                   )
                 )}
@@ -981,7 +981,7 @@ export const UsersPage: React.FC = () => {
       <ConfirmModal
         isOpen={resetPasswordConfirm.isOpen}
         title="ยืนยันการรีเซ็ตรหัสผ่าน"
-        message={`คุณต้องการรีเซ็ตรหัสผ่านสำหรับ "${resetPasswordConfirm.userName}" กลับเป็นวันเดือนปีเกิด (${resetPasswordConfirm.defaultPassword || 'ดดมมปปปป'}) ใช่หรือไม่?`}
+        message={`คุณต้องการรีเซ็ตรหัสผ่านสำหรับ "${resetPasswordConfirm.userName}" กลับเป็นวันเดือนปีเกิด${resetPasswordConfirm.defaultPassword ? ` (${resetPasswordConfirm.defaultPassword})` : ''} ใช่หรือไม่?`}
         confirmText="ยืนยันการรีเซ็ต"
         cancelText="ยกเลิก"
         type="info"
