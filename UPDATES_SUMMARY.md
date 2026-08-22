@@ -18,3 +18,6 @@
 - `src/features/home/HomePage.tsx`: สร้างหน้าหลัก แสดงผลข้อมูลระบบ แบนเนอร์ต้อนรับ และการ์ดโมดูล
 - **Dynamic Permitted Modules**: กรองสิทธิ์การเข้าถึงจาก API `/api/v1/auth/me/menus` แสดงผลเฉพาะโมดูลที่ผู้ใช้นั้นๆ มีสิทธิ์อ่านเท่านั้น
 - `src/features/auth/LoginPage.tsx`: ตั้งค่าให้นำทางเข้าสู่ `http://localhost:5173/home` เมื่อ Login สำเร็จเสมอ
+
+### 4. ปรับเปลี่ยนไอคอนเมนูโฟลเดอร์บน Sidebar Navigation
+- `src/layouts/AdminLayout/AdminLayout.tsx`: นำเข้าไอคอน `Folder` และปรับแต่งให้เมนูรายการใดที่เป็น Folder (ไม่มี Endpoint หรือมีเมนูลูกข่ายผูกไว้) แสดงผลไอคอนเป็น Folder 📁 โดยอัตโนมัติ
