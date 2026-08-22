@@ -31,9 +31,19 @@ export const JobsPage: React.FC<JobsPageProps> = ({ mode = 'active' }) => {
   const isHistoryMode = mode === 'history';
   const endpoint = isHistoryMode ? '/jobs/history' : '/jobs';
   const permissions = useMenuPermission(endpoint);
+  const getTodayDateString = () => {
+    const today = new Date();
+    const year = today.getFullYear();
+    const month = String(today.getMonth() + 1).padStart(2, '0');
+    const day = String(today.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+
+  const todayStr = getTodayDateString();
   const [search, setSearch] = useState('');
   const [status, setStatus] = useState('');
-  const [scheduledDate, setScheduledDate] = useState('');
+  const [startDate, setStartDate] = useState(todayStr);
+  const [endDate, setEndDate] = useState(todayStr);
   const [page, setPage] = useState<number>(1);
   const pageSize = 10;
 
@@ -43,11 +53,11 @@ export const JobsPage: React.FC<JobsPageProps> = ({ mode = 'active' }) => {
   });
 
   const { data: jobs = [], refetch } = useQuery({
-    queryKey: ['admin-jobs', search, status, mode, scheduledDate],
+    queryKey: ['admin-jobs', search, status, mode, startDate, endDate],
     queryFn: async () => {
       try {
         const res = await apiClient.get('/api/v1/admin/jobs', {
-          params: { search, status, mode, date: scheduledDate }
+          params: { search, status, mode, startDate, endDate }
         });
         return res.data?.data || [];
       } catch (err) {
@@ -155,33 +165,60 @@ export const JobsPage: React.FC<JobsPageProps> = ({ mode = 'active' }) => {
             />
           </div>
 
-          {/* Scheduled Date Filter */}
-          <div className="relative w-full sm:w-44 flex items-center">
-            <Calendar size={15} className="absolute left-3 text-slate-400 pointer-events-none" />
+          {/* Scheduled Date Range Filter (จากวันที่ - ถึงวันที่) */}
+          <div className="flex flex-wrap items-center gap-1.5 bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1.5 focus-within:ring-2 focus-within:ring-blue-500/20 focus-within:border-blue-500 transition-all">
+            <Calendar size={15} className="text-slate-400 shrink-0" />
+            <span className="text-xs font-medium text-slate-500 shrink-0">จาก</span>
             <input
               type="date"
-              value={scheduledDate}
+              value={startDate}
               onChange={(e) => {
-                setScheduledDate(e.target.value);
+                setStartDate(e.target.value);
                 setPage(1);
               }}
-              className="w-full pl-8 pr-7 py-2 text-xs bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 text-slate-800 font-medium cursor-pointer"
-              title="เลือกเวลานัดหมาย"
+              className="bg-transparent text-xs text-slate-800 font-medium focus:outline-none cursor-pointer"
+              title="วันที่เริ่มต้น"
             />
-            {scheduledDate && (
+            <span className="text-xs font-medium text-slate-500 shrink-0">- ถึง</span>
+            <input
+              type="date"
+              value={endDate}
+              onChange={(e) => {
+                setEndDate(e.target.value);
+                setPage(1);
+              }}
+              className="bg-transparent text-xs text-slate-800 font-medium focus:outline-none cursor-pointer"
+              title="วันที่สิ้นสุด"
+            />
+            {(startDate || endDate) && (
               <button
                 type="button"
                 onClick={() => {
-                  setScheduledDate('');
+                  setStartDate('');
+                  setEndDate('');
                   setPage(1);
                 }}
-                className="absolute right-2 text-[10px] bg-slate-200 hover:bg-slate-300 text-slate-700 px-1.5 py-0.5 rounded cursor-pointer font-bold"
-                title="ล้างตัวกรองวันที่"
+                className="text-[11px] bg-slate-200 hover:bg-slate-300 text-slate-600 px-1.5 py-0.5 rounded cursor-pointer font-bold transition-colors ml-0.5"
+                title="ล้างตัวกรองวันที่ (แสดงทั้งหมด)"
               >
                 ✕
               </button>
             )}
           </div>
+          {(startDate !== todayStr || endDate !== todayStr) && (
+            <button
+              type="button"
+              onClick={() => {
+                setStartDate(todayStr);
+                setEndDate(todayStr);
+                setPage(1);
+              }}
+              className="px-2.5 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-600 text-xs font-semibold rounded-lg border border-blue-200 transition-colors cursor-pointer shrink-0"
+              title="ตั้งค่าเป็นวันปัจจุบัน"
+            >
+              วันนี้
+            </button>
+          )}
 
           <div className="w-full sm:w-48">
             <CustomScrollSelect
