@@ -2,7 +2,6 @@ export interface UserMenuPermissionNode {
   menuId: number;
   parentId: number | null;
   nameTh: string;
-  nameEn: string;
   endpoint: string | null;
   seq: number;
   isPublic: boolean;
@@ -53,7 +52,6 @@ export interface UserNavMenu {
   id: number;
   parentId: number | null;
   nameTh: string;
-  nameEn: string;
   endpoint: string | null;
   menuType: number;
   externalUrl?: string | null;

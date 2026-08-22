@@ -60,7 +60,6 @@ function filterTree(
     .map((item) => {
       const children = filterTree(item.children, query);
       const haystack = [
-        item.nameEn,
         item.nameTh,
         item.endpoint ?? '',
         item.externalUrl ?? '',
@@ -176,7 +175,7 @@ function TreeNode({
             onToggle(item.id);
           }
         }}
-        title={`${item.nameEn} · ${item.nameTh}`}
+        title={item.nameTh}
         className="flex min-w-0 flex-1 items-center gap-2 pl-1 pr-3 text-left cursor-pointer"
       >
         <TreeNodeGlyph
@@ -190,7 +189,7 @@ function TreeNode({
             isSelected ? 'font-bold text-blue-700' : 'text-slate-700'
           }`}
         >
-          {item.nameTh || item.nameEn}
+          {item.nameTh}
         </span>
 
         <span className="ml-auto flex shrink-0 items-center gap-1.5">

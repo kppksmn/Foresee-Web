@@ -11,7 +11,6 @@ export function buildMenuManagementDraft(
 ): MenuManagementDraft {
   return {
     nameTh: menu.nameTh,
-    nameEn: menu.nameEn,
     endpoint: menu.endpoint ?? '',
     menuType: menu.menuType,
     externalUrl: menu.externalUrl ?? '',
@@ -116,7 +115,7 @@ export function flattenMenuManagementParentOptions(
     return [
       {
         id: item.id,
-        label: item.nameTh || item.nameEn,
+        label: item.nameTh,
         level,
       },
       ...children,
@@ -125,36 +124,12 @@ export function flattenMenuManagementParentOptions(
 }
 
 export function validateMenuManagementDraft(draft: MenuManagementDraft): string | null {
-  const name = (draft.nameTh || draft.nameEn || '').trim();
-  if (!name) {
+  if (!draft.nameTh.trim()) {
     return 'กรุณากรอกชื่อเมนู';
   }
 
   if (draft.seq <= 0) {
     return 'Sequence ต้องมีค่ามากกว่า 0';
-  }
-
-  if (draft.menuType === 'external') {
-    if (!draft.endpoint.trim()) {
-      return 'กรุณากรอก Endpoint สำหรับ external menu';
-    }
-
-    if (!draft.externalUrl.trim()) {
-      return 'กรุณากรอก External URL';
-    }
-
-    if (!draft.targetPath.trim()) {
-      return 'กรุณากรอก Target Path';
-    }
-
-    try {
-      const url = new URL(draft.externalUrl.trim());
-      if (url.protocol !== 'http:' && url.protocol !== 'https:') {
-        return 'External URL ต้องขึ้นต้นด้วย http หรือ https';
-      }
-    } catch {
-      return 'External URL ไม่ถูกต้อง';
-    }
   }
 
   return null;

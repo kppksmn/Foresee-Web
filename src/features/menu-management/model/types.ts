@@ -1,7 +1,6 @@
 export interface MenuManagementMenuItem {
   id: number;
   nameTh: string;
-  nameEn: string;
   endpoint: string | null;
   menuType: MenuManagementMenuType;
   externalUrl: string | null;
@@ -26,7 +25,6 @@ export interface MenuManagementTreeItem extends MenuManagementMenuItem {
 
 export interface MenuManagementDraft {
   nameTh: string;
-  nameEn: string;
   endpoint: string;
   menuType: MenuManagementMenuType;
   externalUrl: string;
@@ -179,7 +177,6 @@ export const permissionOptions: MenuManagementPermissionOption[] = [
 
 export const defaultMenuManagementDraft: MenuManagementDraft = {
   nameTh: '',
-  nameEn: '',
   endpoint: '',
   menuType: 'internal',
   externalUrl: '',

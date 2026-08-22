@@ -59,7 +59,7 @@ export function useDeleteMenuManagementMenuMutation() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async ({ id }: { id: number; nameEn: string }) => {
+    mutationFn: async ({ id }: { id: number }) => {
       await deleteMenuManagementMenu(id);
     },
     onSuccess: () => {

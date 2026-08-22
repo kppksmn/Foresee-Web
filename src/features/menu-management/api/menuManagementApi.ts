@@ -3,7 +3,6 @@ import {
   mapAuthenticationModeFromApi,
   mapAuthenticationModeToApi,
   mapMenuTypeFromApi,
-  mapMenuTypeToApi,
   mapOpenModeFromApi,
   mapOpenModeToApi,
 } from '../lib/menuConfig';
@@ -23,7 +22,6 @@ function normalizeMenu(source: any): MenuManagementMenuItem {
   return {
     id: Number(source.id ?? 0),
     nameTh: String(source.nameTh ?? ''),
-    nameEn: String(source.nameEn ?? ''),
     endpoint: source.endpoint ? String(source.endpoint) : null,
     menuType: mapMenuTypeFromApi(menuTypeValue),
     externalUrl: source.externalUrl ? String(source.externalUrl) : null,
@@ -56,11 +54,10 @@ function normalizeTreeItem(source: any): MenuManagementTreeItem {
 function toRequestBody(draft: MenuManagementDraft) {
   return {
     nameTh: draft.nameTh.trim(),
-    nameEn: draft.nameEn.trim(),
     endpoint: draft.endpoint.trim() || null,
-    menuType: mapMenuTypeToApi(draft.menuType),
-    externalUrl: draft.externalUrl.trim() || null,
-    targetPath: draft.targetPath.trim() || null,
+    menuType: 1,
+    externalUrl: null,
+    targetPath: null,
     openMode: mapOpenModeToApi(draft.openMode),
     authenticationMode: mapAuthenticationModeToApi(draft.authenticationMode),
     parentId: draft.parentId,

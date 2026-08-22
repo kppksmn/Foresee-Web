@@ -105,13 +105,8 @@ export const UserMenuAssignmentTreeRow: React.FC<UserMenuAssignmentTreeRowProps>
             <div className="min-w-0">
               <div className="flex items-center gap-1.5">
                 <span className={`text-xs truncate ${isFolder ? 'font-bold text-slate-900' : 'font-medium text-slate-800'}`}>
-                  {node.nameTh || node.nameEn}
+                  {node.nameTh}
                 </span>
-                {node.nameEn && node.nameTh && (
-                  <span className="text-[11px] text-slate-400 truncate hidden sm:inline">
-                    ({node.nameEn})
-                  </span>
-                )}
                 {coverage ? (
                   <span
                     className={`text-[10px] font-bold px-1.5 py-0.2 rounded-full border ${

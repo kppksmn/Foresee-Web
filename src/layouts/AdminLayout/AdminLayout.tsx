@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import {
+  Home,
   LayoutDashboard,
   ClipboardList,
   Truck,
@@ -34,28 +35,29 @@ interface SidebarItem {
   subItems?: { text: string; icon: any; path: string; role?: string }[];
 }
 
-const getMenuIcon = (nameEn: string, endpoint?: string | null) => {
-  const clean = (nameEn || '').toLowerCase();
+const getMenuIcon = (nameTh: string, endpoint?: string | null) => {
+  const clean = (nameTh || '').toLowerCase();
   const ep = (endpoint || '').toLowerCase();
 
-  if (clean.includes('dashboard') || ep.includes('dashboard')) return LayoutDashboard;
-  if (clean.includes('history') || ep.includes('history')) return History;
-  if (clean.includes('active') || clean.includes('clock') || ep === '/jobs') return Clock;
-  if (clean.includes('job') || ep.includes('jobs')) return ClipboardList;
-  if (clean.includes('vehicle type') || ep.includes('vehicle-types')) return Tag;
-  if (clean.includes('vehicle list') || ep.includes('vehicles')) return List;
-  if (clean.includes('vehicle') || clean.includes('truck')) return Truck;
-  if (clean.includes('permission') || ep.includes('permissions')) return ShieldCheck;
-  if (clean.includes('user') || clean.includes('staff') || ep.includes('users')) return Users;
+  if (clean.includes('หน้าหลัก') || clean.includes('home') || ep === '/home') return Home;
+  if (clean.includes('ภาพรวม') || clean.includes('dashboard') || ep.includes('dashboard')) return LayoutDashboard;
+  if (clean.includes('ประวัติ') || clean.includes('history') || ep.includes('history')) return History;
+  if (clean.includes('งาน') || clean.includes('job') || ep.includes('jobs')) return ClipboardList;
+  if (clean.includes('ประเภทรถ') || ep.includes('vehicle-types')) return Tag;
+  if (clean.includes('ยานพาหนะ') || ep.includes('vehicles')) return List;
+  if (clean.includes('รถ') || clean.includes('truck')) return Truck;
+  if (clean.includes('สิทธิ์') || clean.includes('permission') || ep.includes('permissions')) return ShieldCheck;
+  if (clean.includes('ผู้ใช้') || clean.includes('พนักงาน') || ep.includes('users')) return Users;
   if (clean.includes('audit') || clean.includes('log') || ep.includes('audit-logs')) return ShieldCheck;
-  if (clean.includes('structure') || clean.includes('menu') || ep.includes('menu-managements')) return FolderTree;
-  if (clean.includes('report') || ep.includes('reports')) return FileText;
-  if (clean.includes('setting') || ep.includes('settings')) return Globe;
+  if (clean.includes('เมนู') || ep.includes('menu')) return FolderTree;
+  if (clean.includes('รายงาน') || ep.includes('reports')) return FileText;
+  if (clean.includes('ตั้งค่า') || ep.includes('settings')) return Globe;
 
   return ep ? FileText : FolderTree;
 };
 
 const defaultSidebarItems: SidebarItem[] = [
+  { text: 'หน้าหลัก (Home)', icon: Home, path: '/home' },
   { text: 'ภาพรวมระบบ', icon: LayoutDashboard, path: '/dashboard' },
   {
     text: 'รายการงาน',
@@ -93,9 +95,6 @@ export const AdminLayout: React.FC = () => {
     'รายการงาน': true,
     'จัดการยานพาหนะ': true,
     'จัดการเมนู': true,
-    'Jobs': true,
-    'Vehicles': true,
-    'Menu Management': true,
   });
   const navigate = useNavigate();
   const location = useLocation();
@@ -124,18 +123,18 @@ export const AdminLayout: React.FC = () => {
     }
 
     const items: SidebarItem[] = userMenus.map((menu) => {
-      const icon = getMenuIcon(menu.nameEn, menu.endpoint);
+      const icon = getMenuIcon(menu.nameTh, menu.endpoint);
       const subItems =
         menu.children && menu.children.length > 0
           ? menu.children.map((child: UserNavMenu) => ({
-              text: child.nameTh || child.nameEn,
-              icon: getMenuIcon(child.nameEn, child.endpoint),
+              text: child.nameTh,
+              icon: getMenuIcon(child.nameTh, child.endpoint),
               path: child.endpoint || '',
             }))
           : undefined;
 
       return {
-        text: menu.nameTh || menu.nameEn,
+        text: menu.nameTh,
         icon,
         path: menu.endpoint || undefined,
         subItems,

@@ -55,34 +55,7 @@ export const LoginPage: React.FC = () => {
           localStorage.removeItem('remembered_username');
         }
 
-        let targetRoute = '/dashboard';
-        const userRole = (res.data.data.role || '').toLowerCase();
-        if (userRole !== 'admin') {
-          try {
-            const menuRes = await apiClient.get('/api/v1/auth/me/menus', {
-              headers: { Authorization: `Bearer ${res.data.data.accessToken}` }
-            });
-            const menus = menuRes.data?.data || [];
-
-            const findFirstEndpoint = (list: any[]): string | null => {
-              for (const m of list) {
-                if (m.endpoint) return m.endpoint;
-                if (m.children?.length) {
-                  const childEp = findFirstEndpoint(m.children);
-                  if (childEp) return childEp;
-                }
-              }
-              return null;
-            };
-
-            const firstEp = findFirstEndpoint(menus);
-            targetRoute = firstEp || '/no-access';
-          } catch {
-            targetRoute = '/no-access';
-          }
-        }
-
-        navigate(targetRoute);
+        navigate('/home');
       } else {
         setError('ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง');
       }

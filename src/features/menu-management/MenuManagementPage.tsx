@@ -132,7 +132,7 @@ export const MenuManagementPage: React.FC = () => {
     setConfirmState({
       isOpen: true,
       title: 'ยืนยันการบันทึกข้อมูลเมนู',
-      message: `ต้องการบันทึกข้อมูลเมนู "${draft.nameTh || draft.nameEn}" ใช่หรือไม่? การเปลี่ยนแปลงจะมีผลในระบบทันที`,
+      message: `ต้องการบันทึกข้อมูลเมนู "${draft.nameTh}" ใช่หรือไม่? การเปลี่ยนแปลงจะมีผลในระบบทันที`,
       confirmText: 'ยืนยันการบันทึก',
       type: 'info',
       onConfirm: async () => {
@@ -146,7 +146,7 @@ export const MenuManagementPage: React.FC = () => {
           setAlertState({
             isOpen: true,
             title: 'บันทึกสำเร็จ',
-            message: `บันทึกข้อมูลเมนู "${savedMenu.nameTh || savedMenu.nameEn}" เรียบร้อยแล้ว`,
+            message: `บันทึกข้อมูลเมนู "${savedMenu.nameTh}" เรียบร้อยแล้ว`,
             type: 'success',
           });
         } catch (err: any) {
@@ -172,7 +172,7 @@ export const MenuManagementPage: React.FC = () => {
     setConfirmState({
       isOpen: true,
       title: 'ยืนยันการลบเมนู',
-      message: `ต้องการลบเมนู "${selectedMenu.nameTh || selectedMenu.nameEn}"${
+      message: `ต้องการลบเมนู "${selectedMenu.nameTh}"${
         descendantCount > 0
           ? ` และเมนูย่อยทั้งหมดอีก ${descendantCount} รายการ`
           : ''
@@ -184,13 +184,12 @@ export const MenuManagementPage: React.FC = () => {
         try {
           await deleteMutation.mutateAsync({
             id: selectedMenu.id,
-            nameEn: selectedMenu.nameEn,
           });
           selectMenu(selectedMenu.parentId);
           setAlertState({
             isOpen: true,
             title: 'ลบเมนูสำเร็จ',
-            message: `ลบเมนู "${selectedMenu.nameEn}" เรียบร้อยแล้ว`,
+            message: `ลบเมนู "${selectedMenu.nameTh}" เรียบร้อยแล้ว`,
             type: 'success',
           });
         } catch (err: any) {
@@ -241,7 +240,7 @@ export const MenuManagementPage: React.FC = () => {
     );
   }
 
-  if (tree.length === 0) {
+  if (tree.length === 0 && mode !== 'create') {
     return (
       <section className="rounded-2xl border border-slate-200 bg-white p-8 shadow-xs">
         <div className="max-w-2xl space-y-4">

@@ -319,7 +319,6 @@ export const UserMenuPermissionsPage: React.FC = () => {
         const matchesQuery =
           !query ||
           node.nameTh.toLowerCase().includes(query) ||
-          node.nameEn.toLowerCase().includes(query) ||
           (node.endpoint && node.endpoint.toLowerCase().includes(query));
 
         let matchesTab = true;

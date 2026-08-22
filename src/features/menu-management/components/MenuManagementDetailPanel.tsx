@@ -111,7 +111,7 @@ export const MenuManagementDetailPanel: React.FC<MenuManagementDetailPanelProps>
             </div>
 
             <h2 className="mt-1 truncate text-base font-bold text-slate-900">
-              {draft.nameTh || draft.nameEn || 'ร่างเมนูใหม่'}
+              {draft.nameTh || 'ร่างเมนูใหม่'}
             </h2>
           </div>
 
@@ -170,11 +170,8 @@ export const MenuManagementDetailPanel: React.FC<MenuManagementDetailPanelProps>
                   ชื่อเมนู <span className="text-rose-500">*</span>
                 </span>
                 <input
-                  value={draft.nameTh || draft.nameEn}
-                  onChange={(e) => {
-                    const val = e.target.value;
-                    onChangeDraft({ nameTh: val, nameEn: val });
-                  }}
+                  value={draft.nameTh}
+                  onChange={(e) => onChangeDraft({ nameTh: e.target.value })}
                   disabled={!canEdit}
                   className={inputClass}
                   placeholder="เช่น จัดการโครงสร้างเมนู, ภาพรวมระบบ, จัดการงาน"
@@ -286,7 +283,7 @@ export const MenuManagementDetailPanel: React.FC<MenuManagementDetailPanelProps>
           </SectionPanel>
 
           {/* Section 5: Danger Zone (Delete) */}
-          {!isCreateMode && canDelete && selectedMenu && (
+          {!isCreateMode && canDelete && selectedMenu && selectedMenu.endpoint !== '/menu-managements' && selectedMenu.endpoint !== '/menu-managements/permissions' && (
             <SectionPanel
               title="พื้นที่อันตราย (Danger Zone)"
               description="การลบเมนูจะส่งผลให้เมนูนี้และเมนูลูกทั้งหมดถูกปิดการใช้งานทันที"
@@ -300,7 +297,7 @@ export const MenuManagementDetailPanel: React.FC<MenuManagementDetailPanelProps>
                 className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-rose-300 bg-rose-50 px-3.5 text-xs font-semibold text-rose-700 transition hover:bg-rose-100 disabled:opacity-60 cursor-pointer"
               >
                 <Trash2 className="h-3.5 w-3.5" />
-                {isDeleting ? 'กำลังลบ...' : `ลบเมนู "${selectedMenu.nameEn}"`}
+                {isDeleting ? 'กำลังลบ...' : `ลบเมนู "${selectedMenu.nameTh}"`}
               </button>
             </SectionPanel>
           )}
