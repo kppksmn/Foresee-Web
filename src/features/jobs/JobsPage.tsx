@@ -6,7 +6,8 @@ import {
   MapPin,
   Pencil,
   Eye,
-  Users
+  Users,
+  Calendar
 } from 'lucide-react';
 import { JobStatusBadge } from '../../components/common/StatusBadge';
 import { useNavigate } from 'react-router-dom';
@@ -30,6 +31,7 @@ export const JobsPage: React.FC<JobsPageProps> = ({ mode = 'active' }) => {
   const permissions = useMenuPermission(endpoint);
   const [search, setSearch] = useState('');
   const [status, setStatus] = useState('');
+  const [scheduledDate, setScheduledDate] = useState('');
   const [page, setPage] = useState<number>(1);
   const pageSize = 10;
 
@@ -39,11 +41,11 @@ export const JobsPage: React.FC<JobsPageProps> = ({ mode = 'active' }) => {
   });
 
   const { data: jobs = [], refetch } = useQuery({
-    queryKey: ['admin-jobs', search, status, mode],
+    queryKey: ['admin-jobs', search, status, mode, scheduledDate],
     queryFn: async () => {
       try {
         const res = await apiClient.get('/api/v1/admin/jobs', {
-          params: { search, status, mode }
+          params: { search, status, mode, date: scheduledDate }
         });
         return res.data?.data || [];
       } catch (err) {
@@ -99,6 +101,35 @@ export const JobsPage: React.FC<JobsPageProps> = ({ mode = 'active' }) => {
               className="w-full pl-9 pr-4 py-2 text-sm bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 text-slate-800"
             />
           </div>
+
+          {/* Scheduled Date Filter */}
+          <div className="relative w-full sm:w-44 flex items-center">
+            <Calendar size={15} className="absolute left-3 text-slate-400 pointer-events-none" />
+            <input
+              type="date"
+              value={scheduledDate}
+              onChange={(e) => {
+                setScheduledDate(e.target.value);
+                setPage(1);
+              }}
+              className="w-full pl-8 pr-7 py-2 text-xs bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 text-slate-800 font-medium cursor-pointer"
+              title="เลือกเวลานัดหมาย"
+            />
+            {scheduledDate && (
+              <button
+                type="button"
+                onClick={() => {
+                  setScheduledDate('');
+                  setPage(1);
+                }}
+                className="absolute right-2 text-[10px] bg-slate-200 hover:bg-slate-300 text-slate-700 px-1.5 py-0.5 rounded cursor-pointer font-bold"
+                title="ล้างตัวกรองวันที่"
+              >
+                ✕
+              </button>
+            )}
+          </div>
+
           <div className="w-full sm:w-48">
             <CustomScrollSelect
               value={status}
