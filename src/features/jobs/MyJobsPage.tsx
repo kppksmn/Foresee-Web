@@ -7,9 +7,8 @@ import {
   Calendar,
   Clock,
   CheckCircle2,
-  Truck,
   Briefcase,
-  UserCheck,
+  Users,
   FileSpreadsheet
 } from 'lucide-react';
 import { JobStatusBadge } from '../../components/common/StatusBadge';
@@ -285,22 +284,23 @@ export const MyJobsPage: React.FC = () => {
                     <th className="px-5 py-3.5 whitespace-nowrap">เลขที่งาน</th>
                     <th className="px-5 py-3.5 min-w-[260px] lg:min-w-[320px]">หัวข้องาน</th>
                     <th className="px-5 py-3.5 min-w-[200px]">สถานที่ / จุดรับ</th>
+                    <th className="px-5 py-3.5 whitespace-nowrap">พนักงานขับรถ</th>
+                    <th className="px-5 py-3.5 whitespace-nowrap">รถ / ยานพาหนะ</th>
                     <th className="px-5 py-3.5 whitespace-nowrap">เวลานัดหมาย</th>
-                    <th className="px-5 py-3.5 whitespace-nowrap">ยานพาหนะ</th>
                     <th className="px-5 py-3.5 whitespace-nowrap">สถานะ</th>
-                    <th className="px-5 py-3.5 whitespace-nowrap text-right min-w-[90px]">รายละเอียด</th>
+                    <th className="px-5 py-3.5 text-right whitespace-nowrap">จัดการ</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
                   {isLoading ? (
                     <tr>
-                      <td colSpan={7} className="px-5 py-12 text-center text-slate-400 text-sm">
+                      <td colSpan={8} className="px-5 py-12 text-center text-slate-400 text-sm">
                         กำลังโหลดรายการงานของคุณ...
                       </td>
                     </tr>
                   ) : jobs.length === 0 ? (
                     <tr>
-                      <td colSpan={7} className="px-5 py-12 text-center text-slate-400 text-sm">
+                      <td colSpan={8} className="px-5 py-12 text-center text-slate-400 text-sm">
                         {startDate || endDate
                           ? `ไม่พบงานของคุณในช่วงวันที่ ${startDate}${endDate && endDate !== startDate ? ` ถึง ${endDate}` : ''}`
                           : 'ไม่พบรายการงานของคุณในระบบ'}
@@ -309,65 +309,72 @@ export const MyJobsPage: React.FC = () => {
                   ) : (
                     paginatedJobs.map((job: any) => (
                       <tr key={job.id} className="hover:bg-slate-50/50 transition-colors">
-                        <td className="px-5 py-4 font-mono font-semibold text-blue-600 text-xs whitespace-nowrap align-middle">
-                          {job.jobNumber}
+                        <td className="px-5 py-4 font-semibold text-blue-600 font-mono whitespace-nowrap align-middle">
+                          <button
+                            onClick={() => navigate(`/jobs/edit/${job.id}?readOnly=true`)}
+                            className="hover:underline text-left font-mono font-semibold text-blue-600 cursor-pointer"
+                            title="คลิกเพื่อดูรายละเอียดงาน"
+                          >
+                            {job.jobNumber || job.job_number || job.jobnumber || `JOB-${job.id}`}
+                          </button>
                         </td>
-                        <td className="px-5 py-4 align-middle">
-                          <div className="font-semibold text-slate-900 text-sm">{job.title}</div>
+                        <td className="px-5 py-4 min-w-[220px] lg:min-w-[260px] align-middle">
+                          <button
+                            onClick={() => navigate(`/jobs/edit/${job.id}?readOnly=true`)}
+                            className="font-medium text-slate-900 leading-snug hover:text-blue-600 hover:underline text-left cursor-pointer"
+                            title="คลิกเพื่อดูรายละเอียดงาน"
+                          >
+                            {job.title}
+                          </button>
                           {job.description && (
                             <div className="text-xs text-slate-500 line-clamp-1 mt-0.5">{job.description}</div>
                           )}
-                          {job.companionName && (
-                            <div className="inline-flex items-center gap-1 mt-1 text-[11px] text-amber-700 bg-amber-50 px-2 py-0.5 rounded border border-amber-200/60">
-                              <UserCheck size={12} />
-                              <span>ผู้ร่วมเดินทาง: {job.companionName}</span>
-                            </div>
-                          )}
                         </td>
-                        <td className="px-5 py-4 align-middle">
-                          <div className="flex items-start gap-1.5 text-xs text-slate-700">
-                            <MapPin size={14} className="text-rose-500 shrink-0 mt-0.5" />
-                            <span className="line-clamp-2">{job.pickupLocation || '-'}</span>
+                        <td className="px-5 py-4 min-w-[200px] align-middle">
+                          <div className="flex items-center gap-1.5 text-xs text-slate-700 font-medium">
+                            <MapPin size={13} className="text-blue-600 shrink-0" />
+                            <span className="truncate max-w-xs">{job.pickupLocation || job.pickuplocation || '-'}</span>
                           </div>
                         </td>
                         <td className="px-5 py-4 whitespace-nowrap align-middle">
-                          {job.scheduledDate ? (
-                            <div>
-                              <div className="font-medium text-slate-900 text-xs">{formatDateThai(job.scheduledDate)}</div>
-                              <div className="text-[11px] text-slate-500 font-mono flex items-center gap-1 mt-0.5">
-                                <Clock size={11} className="text-slate-400" />
-                                <span>{job.scheduledTime || formatTimeThai(job.scheduledStartAt)} น.</span>
-                              </div>
+                          <div className="font-medium text-slate-900">
+                            {job.driverName || job.drivername || job.driver_name || (job.driverId || job.driver_id || job.driverid ? `พนักงาน #${job.driverId || job.driver_id || job.driverid}` : 'ยังไม่ได้มอบหมาย')}
+                          </div>
+                          {(job.companionName || job.companionname || job.companions) && (
+                            <div className="text-xs text-indigo-600 font-normal flex items-center gap-1 mt-0.5">
+                              <Users size={12} className="shrink-0 text-indigo-500" />
+                              <span>ผู้ร่วมเดินทาง: {job.companionName || job.companionname || job.companions}</span>
                             </div>
-                          ) : (
-                            <span className="text-slate-400 text-xs">-</span>
                           )}
                         </td>
                         <td className="px-5 py-4 whitespace-nowrap align-middle">
-                          {job.vehiclePlate ? (
-                            <div className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-800 bg-slate-100 px-2.5 py-1 rounded-lg">
-                              <Truck size={13} className="text-blue-600" />
-                              <span>{job.vehiclePlate}</span>
-                              {job.vehicleType && (
-                                <span className="text-[10px] text-slate-500 font-normal">({job.vehicleType})</span>
-                              )}
+                          <div className="font-medium text-slate-800">
+                            {job.vehiclePlate || job.vehicleplate || job.vehicle_plate || '-'}
+                          </div>
+                          {(job.vehicleType || job.vehicletype) && (
+                            <div className="text-xs text-slate-400 font-normal">
+                              {job.vehicleType || job.vehicletype}
                             </div>
-                          ) : (
-                            <span className="text-slate-400 text-xs">ยังไม่ระบุ</span>
                           )}
+                        </td>
+                        <td className="px-5 py-4 text-xs text-slate-500 whitespace-nowrap align-middle">
+                          <div>{formatDateThai(job.scheduledDate || job.scheduleddate)}</div>
+                          <div className="font-medium text-slate-700">{formatTimeThai(job.scheduledTime || job.scheduledtime || job.scheduledStartAt)}</div>
                         </td>
                         <td className="px-5 py-4 whitespace-nowrap align-middle">
                           <JobStatusBadge status={job.status} />
                         </td>
                         <td className="px-5 py-4 text-right whitespace-nowrap align-middle">
-                          <button
-                            onClick={() => navigate(`/jobs/edit/${job.id}?readOnly=true`)}
-                            className="px-3 py-1.5 text-xs font-semibold text-blue-600 hover:text-blue-700 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors inline-flex items-center gap-1 cursor-pointer"
-                            title="ดูรายละเอียดงาน"
-                          >
-                            <Eye size={13} />
-                            <span>รายละเอียด</span>
-                          </button>
+                          <div className="inline-flex items-center gap-1.5 justify-end">
+                            <button
+                              onClick={() => navigate(`/jobs/edit/${job.id}?readOnly=true`)}
+                              className="inline-flex items-center gap-1 px-2.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium text-xs rounded-lg transition-colors border border-slate-200 cursor-pointer"
+                              title="ดูรายละเอียดงาน"
+                            >
+                              <Eye size={13} className="text-slate-500" />
+                              <span>ดูรายละเอียด</span>
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     ))

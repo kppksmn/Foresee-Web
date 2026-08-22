@@ -118,7 +118,7 @@ export const JobsPage: React.FC<JobsPageProps> = ({ mode = 'active' }) => {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4">
         <div>
           <h2 className="text-lg sm:text-xl font-bold text-slate-900 tracking-tight">
-            {isHistoryMode ? 'ประวัติงานขนส่ง (Job History)' : 'จัดการงานขนส่ง'}
+            {isHistoryMode ? 'ประวัติงานขนส่ง (Job History)' : 'จัดการงานขนส่ง (Manage Jobs)'}
           </h2>
           <p className="text-xs sm:text-sm text-slate-500 mt-0.5">
             {isHistoryMode ? 'รายการงานขนส่งที่ปิดงานแล้ว หรือถูกยกเลิก' : 'รายการงานขนส่งที่กำลังดำเนินการ หรือรอดำเนินการ'}
