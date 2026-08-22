@@ -1268,7 +1268,15 @@ export const CreateJobPage: React.FC = () => {
           <div className="flex flex-col-reverse sm:flex-row items-stretch sm:items-center gap-2.5 sm:gap-3">
             <button
               type="button"
-              onClick={() => navigate(isReadOnly ? '/jobs/history' : '/jobs')}
+              onClick={() => {
+                if (window.history.length > 1) {
+                  navigate(-1);
+                } else if (permissions.canRead) {
+                  navigate('/jobs');
+                } else {
+                  navigate('/my-jobs');
+                }
+              }}
               className="px-5 py-2.5 border border-slate-200 rounded-xl text-sm font-medium text-slate-600 hover:bg-slate-50 transition-colors cursor-pointer text-center"
             >
               {isReadOnly ? 'ปิดหน้าต่าง' : 'ยกเลิก'}

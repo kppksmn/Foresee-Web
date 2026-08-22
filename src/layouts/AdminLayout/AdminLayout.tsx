@@ -201,9 +201,20 @@ export const AdminLayout: React.FC = () => {
     if (isLoadingMenus) return true;
 
     const path = location.pathname.toLowerCase();
-    if (path === '/' || path === '' || path === '/no-access') return true;
+    if (path === '/' || path === '' || path === '/no-access' || path === '/home') return true;
 
     if (userRole === 'admin' && path.startsWith('/menu-managements')) return true;
+
+    // Allow /jobs/edit/:id route if user has access to /jobs, /jobs/history, OR /my-jobs
+    if (path.startsWith('/jobs/edit/')) {
+      if (
+        accessibleEndpoints.has('/jobs') ||
+        accessibleEndpoints.has('/jobs/history') ||
+        accessibleEndpoints.has('/my-jobs')
+      ) {
+        return true;
+      }
+    }
 
     if (accessibleEndpoints.size === 0) return false;
 
