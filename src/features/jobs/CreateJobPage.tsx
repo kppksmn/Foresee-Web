@@ -203,6 +203,7 @@ export const CreateJobPage: React.FC = () => {
         return [];
       }
     },
+    enabled: !isReadOnly,
   });
 
   // Fetch active jobs to detect scheduling conflicts for drivers and companions
@@ -216,6 +217,7 @@ export const CreateJobPage: React.FC = () => {
         return [];
       }
     },
+    enabled: !isReadOnly,
   });
 
   // Helper to check if an employee has a conflicting active job at the selected arrival date & time
@@ -400,6 +402,7 @@ export const CreateJobPage: React.FC = () => {
         return [];
       }
     },
+    enabled: !isReadOnly,
   });
 
   // Options for Vehicle Dropdown: available (no conflict) first, then alphabetical (ก-ฮ / เลขทะเบียน)
