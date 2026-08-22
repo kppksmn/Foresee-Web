@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Search,
   RefreshCw,
@@ -12,7 +12,7 @@ import {
   FileSpreadsheet
 } from 'lucide-react';
 import { JobStatusBadge } from '../../components/common/StatusBadge';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import apiClient from '../../api/client';
 import { AlertModal } from '../../components/common/CustomModal';
@@ -23,6 +23,7 @@ import { exportToExcel, formatJobStatusThai } from '../../utils/excelExport';
 
 export const MyJobsPage: React.FC = () => {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const getTodayDateString = () => {
     const today = new Date();
     const year = today.getFullYear();
@@ -32,10 +33,52 @@ export const MyJobsPage: React.FC = () => {
   };
 
   const todayStr = getTodayDateString();
-  const [search, setSearch] = useState('');
-  const [status, setStatus] = useState('');
-  const [startDate, setStartDate] = useState(todayStr);
-  const [endDate, setEndDate] = useState(todayStr);
+  const [search, setSearch] = useState(() => {
+    const param = searchParams.get('search');
+    if (param !== null) return param;
+    const cached = sessionStorage.getItem('my_jobs_search');
+    if (cached !== null) return cached;
+    return '';
+  });
+
+  const [status, setStatus] = useState(() => {
+    const param = searchParams.get('status');
+    if (param !== null) return param;
+    const cached = sessionStorage.getItem('my_jobs_status');
+    if (cached !== null) return cached;
+    return '';
+  });
+
+  const [startDate, setStartDate] = useState(() => {
+    const param = searchParams.get('startDate');
+    if (param !== null) return param;
+    const cached = sessionStorage.getItem('my_jobs_startDate');
+    if (cached !== null) return cached;
+    return todayStr;
+  });
+
+  const [endDate, setEndDate] = useState(() => {
+    const param = searchParams.get('endDate');
+    if (param !== null) return param;
+    const cached = sessionStorage.getItem('my_jobs_endDate');
+    if (cached !== null) return cached;
+    return todayStr;
+  });
+
+  useEffect(() => {
+    sessionStorage.setItem('my_jobs_startDate', startDate);
+    sessionStorage.setItem('my_jobs_endDate', endDate);
+    sessionStorage.setItem('my_jobs_search', search);
+    sessionStorage.setItem('my_jobs_status', status);
+
+    const newParams = new URLSearchParams();
+    if (startDate) newParams.set('startDate', startDate);
+    if (endDate) newParams.set('endDate', endDate);
+    if (search) newParams.set('search', search);
+    if (status) newParams.set('status', status);
+
+    setSearchParams(newParams, { replace: true });
+  }, [startDate, endDate, search, status]);
   const [page, setPage] = useState<number>(1);
   const pageSize = 10;
 
