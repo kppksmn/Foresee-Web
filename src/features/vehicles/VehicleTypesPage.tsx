@@ -6,7 +6,8 @@ import {
   Trash2,
   Save,
   Tag,
-  Pencil
+  Pencil,
+  Eye
 } from 'lucide-react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import apiClient from '../../api/client';
@@ -21,6 +22,7 @@ export const VehicleTypesPage: React.FC = () => {
   const [page, setPage] = useState<number>(1);
   const pageSize = 10;
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isReadOnlyModal, setIsReadOnlyModal] = useState(false);
   const [editingTypeId, setEditingTypeId] = useState<number | null>(null);
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
@@ -38,6 +40,30 @@ export const VehicleTypesPage: React.FC = () => {
 
   const showAlert = (message: string, type: 'success' | 'error' | 'info' = 'error') => {
     setAlertModal({ isOpen: true, message, type });
+  };
+
+  const openCreateModal = () => {
+    setEditingTypeId(null);
+    setName('');
+    setDescription('');
+    setIsReadOnlyModal(false);
+    setIsModalOpen(true);
+  };
+
+  const openEditModal = (vt: any) => {
+    setEditingTypeId(vt.id);
+    setName(vt.name || '');
+    setDescription(vt.description || '');
+    setIsReadOnlyModal(false);
+    setIsModalOpen(true);
+  };
+
+  const openViewModal = (vt: any) => {
+    setEditingTypeId(vt.id);
+    setName(vt.name || '');
+    setDescription(vt.description || '');
+    setIsReadOnlyModal(true);
+    setIsModalOpen(true);
   };
 
   const { data: vehicleTypes = [], refetch, isLoading } = useQuery({
@@ -58,20 +84,6 @@ export const VehicleTypesPage: React.FC = () => {
       }
     },
   });
-
-  const openCreateModal = () => {
-    setEditingTypeId(null);
-    setName('');
-    setDescription('');
-    setIsModalOpen(true);
-  };
-
-  const openEditModal = (vt: any) => {
-    setEditingTypeId(vt.id);
-    setName(vt.name);
-    setDescription(vt.description === '-' ? '' : vt.description || '');
-    setIsModalOpen(true);
-  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -230,10 +242,19 @@ export const VehicleTypesPage: React.FC = () => {
                             {vt.description || '-'}
                           </td>
                           <td className="px-6 py-4 text-right space-x-2 whitespace-nowrap align-middle">
+                            <button
+                              onClick={() => openViewModal(vt)}
+                              className="px-2.5 py-1.5 text-xs font-semibold text-slate-700 hover:text-slate-900 bg-slate-100 hover:bg-slate-200 border border-slate-200 rounded-lg transition-colors inline-flex items-center gap-1 cursor-pointer"
+                              title="ดูรายละเอียดประเภทรถ"
+                            >
+                              <Eye size={13} className="text-slate-500" />
+                              <span>ดูรายละเอียด</span>
+                            </button>
                             {permissions.canUpdate && (
                               <button
                                 onClick={() => openEditModal(vt)}
-                                className="px-3 py-1.5 text-xs font-semibold text-blue-600 hover:text-blue-700 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors inline-flex items-center gap-1 cursor-pointer"
+                                className="px-2.5 py-1.5 text-xs font-semibold text-blue-600 hover:text-blue-700 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors inline-flex items-center gap-1 cursor-pointer"
+                                title="แก้ไขประเภทรถ"
                               >
                                 <Pencil size={13} />
                                 <span>แก้ไข</span>
@@ -243,13 +264,11 @@ export const VehicleTypesPage: React.FC = () => {
                               <button
                                 onClick={() => promptDeleteType(vt.id, vt.name)}
                                 className="px-2.5 py-1.5 text-xs font-semibold text-rose-600 hover:text-rose-700 bg-rose-50 hover:bg-rose-100 rounded-lg transition-colors inline-flex items-center gap-1 cursor-pointer"
+                                title="ลบประเภทรถ"
                               >
                                 <Trash2 size={13} />
                                 <span>ลบ</span>
                               </button>
-                            )}
-                            {!permissions.canUpdate && !permissions.canDelete && (
-                              <span className="text-slate-400 text-xs font-medium">-</span>
                             )}
                           </td>
                         </tr>
@@ -299,7 +318,7 @@ export const VehicleTypesPage: React.FC = () => {
           <div className="bg-white rounded-2xl max-w-md w-full p-4 sm:p-6 shadow-xl border border-slate-100">
             <h2 className="text-base sm:text-lg font-bold text-slate-900 mb-4 flex items-center gap-2">
               <Tag size={20} className="text-blue-600" />
-              <span>{editingTypeId ? 'แก้ไขประเภทรถ' : 'เพิ่มประเภทรถใหม่'}</span>
+              <span>{isReadOnlyModal ? 'รายละเอียดประเภทรถ' : editingTypeId ? 'แก้ไขประเภทรถ' : 'เพิ่มประเภทรถใหม่'}</span>
             </h2>
 
             <form onSubmit={handleSubmit} className="space-y-4">
@@ -313,7 +332,8 @@ export const VehicleTypesPage: React.FC = () => {
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   required
-                  className="w-full px-3.5 py-2 text-sm bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 text-slate-800"
+                  disabled={isReadOnlyModal}
+                  className="w-full px-3.5 py-2 text-sm bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 text-slate-800 disabled:bg-slate-100 disabled:text-slate-600 disabled:cursor-not-allowed"
                 />
               </div>
 
@@ -326,7 +346,8 @@ export const VehicleTypesPage: React.FC = () => {
                   placeholder="รายละเอียดเพิ่มเติม..."
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
-                  className="w-full px-3.5 py-2 text-sm bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 text-slate-800"
+                  disabled={isReadOnlyModal}
+                  className="w-full px-3.5 py-2 text-sm bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 text-slate-800 disabled:bg-slate-100 disabled:text-slate-600 disabled:cursor-not-allowed"
                 />
               </div>
 
@@ -336,15 +357,17 @@ export const VehicleTypesPage: React.FC = () => {
                   onClick={() => setIsModalOpen(false)}
                   className="px-4 py-2 border border-slate-200 rounded-xl text-sm font-medium text-slate-600 hover:bg-slate-50 transition-colors cursor-pointer text-center"
                 >
-                  ยกเลิก
+                  {isReadOnlyModal ? 'ปิดหน้าต่าง' : 'ยกเลิก'}
                 </button>
-                <button
-                  type="submit"
-                  className="inline-flex items-center justify-center gap-2 px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium text-sm rounded-xl transition-colors shadow-sm shadow-blue-500/20 cursor-pointer"
-                >
-                  <Save size={16} />
-                  <span>บันทึกประเภทรถ</span>
-                </button>
+                {!isReadOnlyModal && (
+                  <button
+                    type="submit"
+                    className="inline-flex items-center justify-center gap-2 px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium text-sm rounded-xl transition-colors shadow-sm shadow-blue-500/20 cursor-pointer"
+                  >
+                    <Save size={16} />
+                    <span>บันทึกประเภทรถ</span>
+                  </button>
+                )}
               </div>
             </form>
           </div>

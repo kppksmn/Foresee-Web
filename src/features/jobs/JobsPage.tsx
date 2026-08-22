@@ -250,10 +250,22 @@ export const JobsPage: React.FC<JobsPageProps> = ({ mode = 'active' }) => {
                     paginatedJobs.map((job: any) => (
                       <tr key={job.id} className="hover:bg-slate-50/50 transition-colors">
                         <td className="px-5 py-4 font-semibold text-blue-600 font-mono whitespace-nowrap align-middle">
-                          {job.jobNumber || job.job_number || job.jobnumber || `JOB-${job.id}`}
+                          <button
+                            onClick={() => navigate(`/jobs/edit/${job.id}?readOnly=true`)}
+                            className="hover:underline text-left font-mono font-semibold text-blue-600 cursor-pointer"
+                            title="คลิกเพื่อดูรายละเอียดงาน"
+                          >
+                            {job.jobNumber || job.job_number || job.jobnumber || `JOB-${job.id}`}
+                          </button>
                         </td>
                         <td className="px-5 py-4 min-w-[220px] lg:min-w-[260px] align-middle">
-                          <div className="font-medium text-slate-900 leading-snug">{job.title}</div>
+                          <button
+                            onClick={() => navigate(`/jobs/edit/${job.id}?readOnly=true`)}
+                            className="font-medium text-slate-900 leading-snug hover:text-blue-600 hover:underline text-left cursor-pointer"
+                            title="คลิกเพื่อดูรายละเอียดงาน"
+                          >
+                            {job.title}
+                          </button>
                         </td>
                         <td className="px-5 py-4 min-w-[200px] align-middle">
                           <div className="flex items-center gap-1.5 text-xs text-slate-700 font-medium">
@@ -290,25 +302,26 @@ export const JobsPage: React.FC<JobsPageProps> = ({ mode = 'active' }) => {
                           <JobStatusBadge status={job.status} />
                         </td>
                         <td className="px-5 py-4 text-right whitespace-nowrap align-middle">
-                          {isHistoryMode || !permissions.canUpdate ? (
+                          <div className="inline-flex items-center gap-1.5 justify-end">
                             <button
                               onClick={() => navigate(`/jobs/edit/${job.id}?readOnly=true`)}
-                              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium text-xs rounded-lg transition-colors border border-slate-200 cursor-pointer"
+                              className="inline-flex items-center gap-1 px-2.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium text-xs rounded-lg transition-colors border border-slate-200 cursor-pointer"
                               title="ดูรายละเอียดงาน"
                             >
-                              <Eye size={14} className="text-slate-500" />
+                              <Eye size={13} className="text-slate-500" />
                               <span>ดูรายละเอียด</span>
                             </button>
-                          ) : (
-                            <button
-                              onClick={() => navigate(`/jobs/edit/${job.id}`)}
-                              className="px-3 py-1.5 text-xs font-semibold text-blue-600 hover:text-blue-700 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors inline-flex items-center gap-1 cursor-pointer"
-                              title="แก้ไขงาน"
-                            >
-                              <Pencil size={13} />
-                              <span>แก้ไข</span>
-                            </button>
-                          )}
+                            {!isHistoryMode && permissions.canUpdate && (
+                              <button
+                                onClick={() => navigate(`/jobs/edit/${job.id}`)}
+                                className="px-2.5 py-1.5 text-xs font-semibold text-blue-600 hover:text-blue-700 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors inline-flex items-center gap-1 cursor-pointer"
+                                title="แก้ไขงาน"
+                              >
+                                <Pencil size={13} />
+                                <span>แก้ไข</span>
+                              </button>
+                            )}
+                          </div>
                         </td>
                       </tr>
                     ))
